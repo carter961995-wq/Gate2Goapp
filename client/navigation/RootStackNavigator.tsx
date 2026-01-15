@@ -1,12 +1,18 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MainTabNavigator from "@/navigation/MainTabNavigator";
-import ModalScreen from "@/screens/ModalScreen";
+import NewProjectScreen from "@/screens/NewProjectScreen";
+import ProjectWorkspaceScreen from "@/screens/ProjectWorkspaceScreen";
+import DesignGalleryScreen from "@/screens/DesignGalleryScreen";
+import DesignDetailScreen from "@/screens/DesignDetailScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type RootStackParamList = {
   Main: undefined;
-  Modal: undefined;
+  NewProject: undefined;
+  ProjectWorkspace: { projectId: string };
+  DesignGallery: { projectId: string };
+  DesignDetail: { projectId: string; designId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -22,11 +28,31 @@ export default function RootStackNavigator() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
-        name="Modal"
-        component={ModalScreen}
+        name="NewProject"
+        component={NewProjectScreen}
         options={{
-          presentation: "modal",
-          headerTitle: "Modal",
+          headerTitle: "New Project",
+        }}
+      />
+      <Stack.Screen
+        name="ProjectWorkspace"
+        component={ProjectWorkspaceScreen}
+        options={{
+          headerTitle: "Project",
+        }}
+      />
+      <Stack.Screen
+        name="DesignGallery"
+        component={DesignGalleryScreen}
+        options={{
+          headerTitle: "Design Gallery",
+        }}
+      />
+      <Stack.Screen
+        name="DesignDetail"
+        component={DesignDetailScreen}
+        options={{
+          headerTitle: "Design Detail",
         }}
       />
     </Stack.Navigator>
