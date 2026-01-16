@@ -273,10 +273,8 @@ export default function ProjectWorkspaceScreen() {
                   <View key={material.value} style={styles.cardWrapper}>
                     <VisualCard
                       title={material.label}
-                      subtitle={material.tier === "premium" ? "Premium" : "Essential"}
                       icon={material.icon}
                       isSelected={draft.material === material.value}
-                      isLocked={isPremiumLocked(material.tier)}
                       onPress={() => updateDraft({ material: material.value })}
                     />
                   </View>

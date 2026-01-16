@@ -116,11 +116,11 @@ export const GATE_STYLES: { value: GateStyle; label: string; icon: string; tier:
   { value: "vertical_pivot", label: "Vertical Pivot", icon: "rotate-cw", tier: "premium" },
 ];
 
-export const MATERIALS: { value: Material; label: string; icon: string; tier: SubscriptionTier }[] = [
-  { value: "wood", label: "Wood", icon: "box", tier: "essential" },
-  { value: "steel", label: "Steel", icon: "shield", tier: "essential" },
-  { value: "chain_link", label: "Chain Link", icon: "link", tier: "premium" },
-  { value: "aluminum_basic", label: "Aluminum", icon: "layers", tier: "premium" },
+export const MATERIALS: { value: Material; label: string; icon: string }[] = [
+  { value: "wood", label: "Wood", icon: "box" },
+  { value: "steel", label: "Steel", icon: "shield" },
+  { value: "chain_link", label: "Chain Link", icon: "link" },
+  { value: "aluminum_basic", label: "Aluminum", icon: "layers" },
 ];
 
 export const ADDON_OPTIONS: { type: AddonType; label: string; defaultCostCents: number }[] = [
