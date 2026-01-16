@@ -185,12 +185,9 @@ private struct DesignTabView: View {
                         .font(.headline)
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(GateStyle.allCases) { style in
-                            let required: SubscriptionTier = (style == .cantileverSlide || style == .overheadTrack || style == .verticalPivot) ? .premium : .essential
-                            let locked = settings.isPremiumLocked(required)
-                            VisualCard(
-                                title: style.cardTitle,
-                                subtitle: required == .premium ? "Premium" : "Essential",
-                                systemImage: style.cardIcon,
+                            let locked = style.isPremium && settings.isPremiumLocked(.premium)
+                            GateStyleCard(
+                                style: style,
                                 isSelected: draft.gateStyle == style,
                                 isLocked: locked
                             ) {
@@ -206,16 +203,13 @@ private struct DesignTabView: View {
                         .font(.headline)
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(Material.allCases) { material in
-                            let required: SubscriptionTier = (material == .chainLink || material == .aluminumBasic) ? .premium : .essential
-                            let locked = settings.isPremiumLocked(required)
                             VisualCard(
-                                title: material.cardTitle,
-                                subtitle: required == .premium ? "Premium" : "Essential",
+                                title: material.displayName,
+                                subtitle: nil,
                                 systemImage: material.cardIcon,
                                 isSelected: draft.material == material,
-                                isLocked: locked
+                                isLocked: false
                             ) {
-                                guard !locked else { return }
                                 draft.material = material
                             }
                         }
@@ -352,7 +346,7 @@ private struct OptionsPriceTabView: View {
 }
 
 private struct LivePreviewCard: View {
-    let photoPath: String
+    let photoPath: String?
     let style: GateStyle
     let material: Material
 
@@ -361,7 +355,7 @@ private struct LivePreviewCard: View {
             Text("Live Preview")
                 .font(.headline)
             ZStack(alignment: .bottomLeading) {
-                if let ui = FileStore.readUIImage(path: photoPath) {
+                if let path = photoPath, let ui = FileStore.readUIImage(path: path) {
                     Image(uiImage: ui)
                         .resizable()
                         .scaledToFill()
@@ -375,16 +369,24 @@ private struct LivePreviewCard: View {
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 } else {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color.secondary.opacity(0.12))
+                    Image(style.imageName)
+                        .resizable()
+                        .scaledToFill()
                         .frame(height: 220)
-                        .overlay(Text("Photo unavailable").foregroundStyle(.secondary))
+                        .clipped()
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(Color.accentColor.opacity(0.9), lineWidth: 2)
+                                .padding(16)
+                                .blendMode(.overlay)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
 
                 HStack(spacing: 8) {
-                    Text(style.cardTitle)
+                    Text(style.displayName)
                     Text("•")
-                    Text(material.cardTitle)
+                    Text(material.displayName)
                 }
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 10)
