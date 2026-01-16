@@ -19,7 +19,7 @@ struct NewProjectView: View {
 
     var body: some View {
         Form {
-            Section("Jobsite Photo (required)") {
+            Section("Jobsite Photo (optional)") {
                 VStack(alignment: .leading, spacing: 12) {
                     PhotosPicker(selection: $pickedPhotoItem, matching: .images) {
                         ZStack {
@@ -35,19 +35,16 @@ struct NewProjectView: View {
                                 VStack(spacing: 10) {
                                     Image(systemName: "photo.on.rectangle")
                                         .font(.title2)
-                                    Text("Tap to select photo")
+                                    Text("Tap to add jobsite photo")
                                         .font(.headline)
                                         .foregroundStyle(.secondary)
+                                    Text("Or start designing without a photo")
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
                                 }
                             }
                         }
                         .frame(height: 200)
-                    }
-
-                    if photoPath == nil {
-                        Text("A jobsite photo is required to start a project.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -92,8 +89,7 @@ struct NewProjectView: View {
     }
 
     private var canCreate: Bool {
-        let nameOK = !projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        return nameOK && photoPath != nil
+        !projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private func loadPhoto() async {
@@ -118,8 +114,6 @@ struct NewProjectView: View {
     }
 
     private func createProject() {
-        guard let photoPath else { return }
-
         let now = Date()
         let p = ProjectModel(
             name: projectName.trimmingCharacters(in: .whitespacesAndNewlines),

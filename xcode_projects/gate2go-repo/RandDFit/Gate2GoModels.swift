@@ -172,8 +172,8 @@ final class ProjectModel {
     var clientPhone: String?
     var clientEmail: String?
     var notes: String?
-    /// Local file path in app documents.
-    var sitePhotoPath: String
+    /// Local file path in app documents (optional - allows design exploration without site photo).
+    var sitePhotoPath: String?
     var createdAt: Date
     var updatedAt: Date
 
@@ -183,7 +183,7 @@ final class ProjectModel {
          clientPhone: String? = nil,
          clientEmail: String? = nil,
          notes: String? = nil,
-         sitePhotoPath: String,
+         sitePhotoPath: String? = nil,
          createdAt: Date = Date(),
          updatedAt: Date = Date()) {
         self.id = id
