@@ -36,7 +36,7 @@ export default function NewProjectScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
-  const canCreate = projectName.trim().length > 0 && photoUri !== null;
+  const canCreate = projectName.trim().length > 0;
 
   const handleCreate = async () => {
     if (!canCreate || isCreating) return;
@@ -53,7 +53,7 @@ export default function NewProjectScreen() {
         clientPhone: clientPhone.trim() || undefined,
         clientEmail: clientEmail.trim() || undefined,
         notes: notes.trim() || undefined,
-        sitePhotoUri: photoUri!,
+        sitePhotoUri: photoUri || "",
         createdAt: now,
         updatedAt: now,
       };
@@ -77,13 +77,11 @@ export default function NewProjectScreen() {
           },
         ]}
       >
-        <SectionHeader title="Jobsite Photo (required)" />
+        <SectionHeader title="Jobsite Photo (optional)" />
         <PhotoPicker imageUri={photoUri} onImageSelected={setPhotoUri} />
-        {!photoUri ? (
-          <ThemedText style={[styles.hint, { color: theme.textSecondary }]}>
-            A jobsite photo is required to start a project.
-          </ThemedText>
-        ) : null}
+        <ThemedText style={[styles.hint, { color: theme.textSecondary }]}>
+          Add a photo later, or design without one.
+        </ThemedText>
 
         <View style={styles.section}>
           <SectionHeader title="Project" />

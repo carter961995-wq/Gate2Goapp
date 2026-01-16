@@ -223,17 +223,24 @@ export default function ProjectWorkspaceScreen() {
         {activeTab === "design" ? (
           <>
             <View style={styles.previewSection}>
-              <SectionHeader title="Live Preview" />
+              <SectionHeader title="Design Preview" />
               <View
                 style={[
                   styles.previewCard,
                   { backgroundColor: theme.backgroundSecondary },
                 ]}
               >
-                <Image
-                  source={{ uri: project.sitePhotoUri }}
-                  style={styles.previewImage}
-                />
+                {project.sitePhotoUri ? (
+                  <Image
+                    source={{ uri: project.sitePhotoUri }}
+                    style={styles.previewImage}
+                  />
+                ) : (
+                  <Image
+                    source={GATE_STYLE_IMAGES[draft.gateStyle]}
+                    style={styles.previewImage}
+                  />
+                )}
                 <View
                   style={[
                     styles.previewBadge,
