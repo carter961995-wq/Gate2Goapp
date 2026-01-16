@@ -1,4 +1,4 @@
-navi//
+navil.//
 //  Gate2GoModels.swift
 //  Gate2Go
 //
@@ -8,7 +8,7 @@ navi//
 import Foundation
 import SwiftData
 
-enum GateStyle: String, CaseIterable, Codable, Hashable, Identifiable {
+enum GateStyle: Strim kk, CaseIterable, Codable, Hashable, Identifiable {
     case cantileverSlide = "cantilever_slide"
     case singleSwing = "single_swing"
     case doubleSwing = "double_swing"
