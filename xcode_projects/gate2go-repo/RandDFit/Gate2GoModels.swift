@@ -10,6 +10,28 @@ enum GateStyle: String, CaseIterable, Codable, Hashable, Identifiable {
     case verticalPivot = "vertical_pivot"
 
     var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .cantileverSlide: return "Cantilever Slide"
+        case .singleSwing: return "Single Swing"
+        case .doubleSwing: return "Double Swing"
+        case .rollGate: return "Roll Gate"
+        case .overheadTrack: return "Overhead Track"
+        case .verticalPivot: return "Vertical Pivot"
+        }
+    }
+    
+    var imageName: String {
+        return rawValue
+    }
+    
+    var isPremium: Bool {
+        switch self {
+        case .cantileverSlide, .overheadTrack, .verticalPivot: return true
+        case .singleSwing, .doubleSwing, .rollGate: return false
+        }
+    }
 }
 
 enum Material: String, CaseIterable, Codable, Hashable, Identifiable {
@@ -19,6 +41,15 @@ enum Material: String, CaseIterable, Codable, Hashable, Identifiable {
     case aluminumBasic = "aluminum_basic"
 
     var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .wood: return "Wood"
+        case .steel: return "Steel"
+        case .chainLink: return "Chain Link"
+        case .aluminumBasic: return "Aluminum"
+        }
+    }
 }
 
 enum SubscriptionTier: String, Codable, Hashable, Identifiable {
