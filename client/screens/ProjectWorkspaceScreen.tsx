@@ -17,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { VisualCard } from "@/components/VisualCard";
+import { GateStyleCard } from "@/components/GateStyleCard";
 import { Button } from "@/components/Button";
 import { SectionHeader } from "@/components/SectionHeader";
 import { EmptyState } from "@/components/EmptyState";
@@ -29,6 +30,7 @@ import {
   GateDesign,
   GateDesignDraft,
   GATE_STYLES,
+  GATE_STYLE_IMAGES,
   MATERIALS,
 } from "@/types/gate2go";
 import { calculateBasePrice, calculateTotalPrice, formatMoney } from "@/lib/pricing";
@@ -248,13 +250,13 @@ export default function ProjectWorkspaceScreen() {
 
             <View style={styles.section}>
               <SectionHeader title="Gate Style" />
-              <View style={styles.cardsGrid}>
+              <View style={styles.gateStylesGrid}>
                 {GATE_STYLES.map((style) => (
-                  <View key={style.value} style={styles.cardWrapper}>
-                    <VisualCard
+                  <View key={style.value} style={styles.gateStyleWrapper}>
+                    <GateStyleCard
                       title={style.label}
-                      subtitle={style.tier === "premium" ? "Premium" : "Essential"}
-                      icon={style.icon}
+                      subtitle={style.tier === "premium" ? "Premium" : undefined}
+                      image={GATE_STYLE_IMAGES[style.value]}
                       isSelected={draft.gateStyle === style.value}
                       isLocked={isPremiumLocked(style.tier)}
                       onPress={() => updateDraft({ gateStyle: style.value })}
@@ -607,5 +609,11 @@ const styles = StyleSheet.create({
   galleryLinkText: {
     fontSize: 15,
     fontWeight: "500",
+  },
+  gateStylesGrid: {
+    gap: Spacing.md,
+  },
+  gateStyleWrapper: {
+    width: "100%",
   },
 });

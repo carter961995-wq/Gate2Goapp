@@ -49,15 +49,17 @@ Gate2Go is a gate design and pricing application for contractors. Ported from Sw
 - `Material` - Gate material (wood, steel, chain link, aluminum)
 - `AddonLineItem` - Add-ons like keypad, latch, opener
 
-## Gate Styles
-| Style | Tier |
-|-------|------|
-| Single Swing | Essential |
-| Double Swing | Essential |
-| Roll Gate | Essential |
-| Cantilever Slide | Premium |
-| Overhead Track | Premium |
-| Vertical Pivot | Premium |
+## Gate Styles (with AI-generated images)
+| Style | Tier | Image |
+|-------|------|-------|
+| Single Swing | Essential | Rustic wooden swing gate |
+| Double Swing | Essential | Ornate wrought iron gates |
+| Roll Gate | Essential | Industrial steel roll gate |
+| Cantilever Slide | Premium | Modern cantilever sliding gate |
+| Overhead Track | Premium | Modern aluminum slat gate |
+| Vertical Pivot | Premium | Vertical pivot security gate |
+
+Gate images are located in `assets/images/gates/` and displayed via the `GateStyleCard` component.
 
 ## Materials
 | Material | Tier |

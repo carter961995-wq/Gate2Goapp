@@ -147,3 +147,22 @@ export function isPremiumLocked(
   if (requiredTier === "essential") return false;
   return !(hasSubscription && tier === "premium");
 }
+
+export async function seedDemoProject(): Promise<Project | null> {
+  const projects = await getProjects();
+  const existingDemo = projects.find((p) => p.name === "Demo Gate Project");
+  if (existingDemo) return existingDemo;
+  
+  const now = new Date().toISOString();
+  const demoProject: Project = {
+    id: `project_demo_${Date.now()}`,
+    name: "Demo Gate Project",
+    clientName: "Demo Client",
+    sitePhotoUri: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800",
+    createdAt: now,
+    updatedAt: now,
+  };
+  
+  await saveProject(demoProject);
+  return demoProject;
+}

@@ -46,6 +46,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const refreshData = useCallback(async () => {
     try {
+      await storage.seedDemoProject();
       const [loadedSettings, loadedProjects, loadedDesigns] = await Promise.all([
         storage.getSettings(),
         storage.getProjects(),

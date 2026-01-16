@@ -91,6 +91,22 @@ export interface AppSettings {
   brandingEmail: string;
 }
 
+import cantileverImage from "../../assets/images/gates/modern_cantilever_sliding_gate.png";
+import doubleSwingImage from "../../assets/images/gates/ornate_double_swing_iron_gates.png";
+import singleSwingImage from "../../assets/images/gates/rustic_wooden_swing_gate.png";
+import rollGateImage from "../../assets/images/gates/industrial_steel_roll_gate.png";
+import overheadTrackImage from "../../assets/images/gates/modern_aluminum_slat_gate.png";
+import verticalPivotImage from "../../assets/images/gates/vertical_pivot_security_gate.png";
+
+export const GATE_STYLE_IMAGES: Record<GateStyle, any> = {
+  cantilever_slide: cantileverImage,
+  double_swing: doubleSwingImage,
+  single_swing: singleSwingImage,
+  roll_gate: rollGateImage,
+  overhead_track: overheadTrackImage,
+  vertical_pivot: verticalPivotImage,
+};
+
 export const GATE_STYLES: { value: GateStyle; label: string; icon: string; tier: SubscriptionTier }[] = [
   { value: "single_swing", label: "Single Swing", icon: "log-in", tier: "essential" },
   { value: "double_swing", label: "Double Swing", icon: "columns", tier: "essential" },
