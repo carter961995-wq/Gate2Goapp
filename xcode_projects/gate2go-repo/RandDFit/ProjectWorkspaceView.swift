@@ -398,18 +398,57 @@ private struct LivePreviewCard: View {
     }
 }
 
-extension GateStyle {
-    var cardTitle: String {
-        switch self {
-        case .cantileverSlide: return "Cantilever Slide"
-        case .singleSwing: return "Single Swing"
-        case .doubleSwing: return "Double Swing"
-        case .rollGate: return "Roll Gate"
-        case .overheadTrack: return "Overhead Track"
-        case .verticalPivot: return "Vertical Pivot"
+struct GateStyleCard: View {
+    let style: GateStyle
+    let isSelected: Bool
+    let isLocked: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 0) {
+                Image(style.imageName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 100)
+                    .clipped()
+                
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(style.displayName)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        if style.isPremium {
+                            Text("Premium")
+                                .font(.caption2)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                    Spacer()
+                    if isLocked {
+                        Image(systemName: "lock.fill")
+                            .foregroundStyle(.secondary)
+                    } else if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.blue)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+            }
+            .background(isSelected ? Color.accentColor.opacity(0.1) : Color(uiColor: .systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+            )
+            .opacity(isLocked ? 0.6 : 1.0)
         }
+        .buttonStyle(.plain)
     }
+}
 
+extension GateStyle {
     var cardIcon: String {
         switch self {
         case .cantileverSlide: return "arrow.left.and.right.square"
