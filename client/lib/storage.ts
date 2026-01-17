@@ -22,6 +22,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   brandingCompanyName: "",
   brandingPhone: "",
   brandingEmail: "",
+  brandingLogoUri: "",
 };
 
 export async function getSettings(): Promise<AppSettings> {

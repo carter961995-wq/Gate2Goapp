@@ -1,9 +1,10 @@
 import React from "react";
-import { StyleSheet, View, Alert, Pressable } from "react-native";
+import { StyleSheet, View, Alert, Pressable, Image } from "react-native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -72,6 +73,31 @@ export default function SettingsScreen() {
   const handleResetOnboarding = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     updateSettings({ hasCompletedOnboarding: false });
+  };
+
+  const handlePickLogo = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert("Permission Required", "Please grant access to your photo library to select a logo.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      updateSettings({ brandingLogoUri: result.assets[0].uri });
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    updateSettings({ brandingLogoUri: "" });
   };
 
   return (
@@ -178,6 +204,37 @@ export default function SettingsScreen() {
           <View
             style={[styles.card, { backgroundColor: theme.backgroundSecondary }]}
           >
+            <View style={styles.logoSection}>
+              <ThemedText style={styles.logoLabel}>Company Logo</ThemedText>
+              <View style={styles.logoContainer}>
+                {settings.brandingLogoUri ? (
+                  <Pressable onPress={handlePickLogo}>
+                    <Image
+                      source={{ uri: settings.brandingLogoUri }}
+                      style={styles.logoImage}
+                    />
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    onPress={handlePickLogo}
+                    style={[
+                      styles.logoPlaceholder,
+                      { backgroundColor: theme.backgroundTertiary },
+                    ]}
+                  >
+                    <Feather name="image" size={32} color={theme.textSecondary} />
+                    <ThemedText style={{ color: theme.textSecondary, fontSize: 13 }}>
+                      Tap to add logo
+                    </ThemedText>
+                  </Pressable>
+                )}
+                {settings.brandingLogoUri ? (
+                  <Pressable onPress={handleRemoveLogo} style={styles.removeLogoButton}>
+                    <Feather name="x" size={16} color={theme.error} />
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
             <InputField
               label="Company name"
               value={settings.brandingCompanyName}
@@ -270,5 +327,45 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 15,
     fontWeight: "500",
+  },
+  logoSection: {
+    gap: Spacing.sm,
+  },
+  logoLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  logoContainer: {
+    position: "relative",
+    alignSelf: "flex-start",
+  },
+  logoImage: {
+    width: 80,
+    height: 80,
+    borderRadius: BorderRadius.md,
+  },
+  logoPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: BorderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.xs,
+  },
+  removeLogoButton: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
 });

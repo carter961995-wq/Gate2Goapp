@@ -93,6 +93,7 @@ export interface AppSettings {
   brandingCompanyName: string;
   brandingPhone: string;
   brandingEmail: string;
+  brandingLogoUri: string;
 }
 
 import cantileverImage from "../../assets/images/gates/modern_cantilever_sliding_gate.png";
