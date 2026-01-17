@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, View, ScrollView, Image, Switch } from "react-native";
+import { StyleSheet, View, ScrollView, Image, Switch, Alert } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,6 +16,7 @@ import { useApp } from "@/context/AppContext";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { GATE_STYLES, MATERIALS } from "@/types/gate2go";
 import { formatMoney } from "@/lib/pricing";
+import { generateAndShareProposal } from "@/lib/proposal";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type RouteType = RouteProp<RootStackParamList, "DesignDetail">;
@@ -25,13 +26,14 @@ export default function DesignDetailScreen() {
   const route = useRoute<RouteType>();
   const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
-  const { designs, updateDesign, addDesign, projects } = useApp();
+  const { designs, updateDesign, addDesign, projects, settings } = useApp();
   const { projectId, designId } = route.params;
 
   const design = designs.find((d) => d.id === designId);
   const project = projects.find((p) => p.id === projectId);
 
   const [showOriginal, setShowOriginal] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   if (!design) {
     return (
@@ -71,6 +73,27 @@ export default function DesignDetailScreen() {
       updatedAt: now,
     };
     await addDesign(copy);
+  };
+
+  const handleExportProposal = async () => {
+    if (!design || !project || isExporting) return;
+    
+    setIsExporting(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    try {
+      await generateAndShareProposal({
+        design,
+        project,
+        settings,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      Alert.alert("Export Failed", "Unable to generate the proposal. Please try again.");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const displayImageUri = showOriginal
@@ -157,10 +180,12 @@ export default function DesignDetailScreen() {
               <ThemedText>Duplicate</ThemedText>
             </View>
           </Button>
-          <Button onPress={() => {}} style={styles.actionButton}>
+          <Button onPress={handleExportProposal} style={styles.actionButton} disabled={isExporting}>
             <View style={styles.buttonContent}>
               <Feather name="share" size={18} color="#FFFFFF" />
-              <ThemedText style={{ color: "#FFFFFF" }}>Export</ThemedText>
+              <ThemedText style={{ color: "#FFFFFF" }}>
+                {isExporting ? "Generating..." : "Export Proposal"}
+              </ThemedText>
             </View>
           </Button>
         </View>
