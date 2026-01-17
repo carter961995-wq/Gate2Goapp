@@ -18,6 +18,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { VisualCard } from "@/components/VisualCard";
 import { GateStyleCard } from "@/components/GateStyleCard";
+import { GateDesigner } from "@/components/GateDesigner";
 import { Button } from "@/components/Button";
 import { SectionHeader } from "@/components/SectionHeader";
 import { EmptyState } from "@/components/EmptyState";
@@ -32,11 +33,13 @@ import {
   AddonLineItem,
   PicketOrientation,
   FinialStyle,
+  ArchStyle,
   GATE_STYLES,
   GATE_STYLE_IMAGES,
   MATERIALS,
   PICKET_ORIENTATIONS,
   FINIAL_STYLES,
+  ARCH_STYLES,
 } from "@/types/gate2go";
 import { AddOnPicker } from "@/components/AddOnPicker";
 import { calculateBasePrice, calculateTotalPrice, formatMoney } from "@/lib/pricing";
@@ -229,35 +232,27 @@ export default function ProjectWorkspaceScreen() {
         {activeTab === "design" ? (
           <>
             <View style={styles.previewSection}>
-              <SectionHeader title="Design Preview" />
-              <View
-                style={[
-                  styles.previewCard,
-                  { backgroundColor: theme.backgroundSecondary },
-                ]}
-              >
-                {project.sitePhotoUri ? (
-                  <Image
-                    source={{ uri: project.sitePhotoUri }}
-                    style={styles.previewImage}
-                  />
-                ) : (
-                  <Image
-                    source={GATE_STYLE_IMAGES[draft.gateStyle]}
-                    style={styles.previewImage}
-                  />
-                )}
-                <View
-                  style={[
-                    styles.previewBadge,
-                    { backgroundColor: theme.backgroundDefault },
-                  ]}
-                >
-                  <ThemedText style={styles.previewBadgeText}>
-                    {getStyleInfo(draft.gateStyle)?.label} {" \u2022 "}
-                    {getMaterialInfo(draft.material)?.label}
-                  </ThemedText>
-                </View>
+              <SectionHeader title="Gate Preview" />
+              <GateDesigner
+                widthFeet={draft.widthFeet}
+                heightFeet={draft.heightFeet}
+                material={draft.material as any}
+                gateStyle={draft.gateStyle}
+                picketOrientation={(draft.params.picketOrientation as any) || "vertical"}
+                finialStyle={(draft.params.finialStyle as any) || "none"}
+                archStyle={(draft.params.archStyle as any) || "flat"}
+                archHeight={(draft.params.archHeight as number) || 20}
+                picketSpacing={4}
+                picketWidth={3}
+              />
+              <View style={styles.previewInfoRow}>
+                <ThemedText style={[styles.previewInfoText, { color: theme.textSecondary }]}>
+                  {getStyleInfo(draft.gateStyle)?.label} {" \u2022 "}
+                  {getMaterialInfo(draft.material)?.label}
+                </ThemedText>
+                <ThemedText style={[styles.previewInfoText, { color: theme.textSecondary }]}>
+                  {draft.widthFeet}' W x {draft.heightFeet}' H
+                </ThemedText>
               </View>
             </View>
 
@@ -458,6 +453,50 @@ export default function ProjectWorkspaceScreen() {
             ) : null}
 
             <View style={styles.section}>
+              <SectionHeader title="Top Edge Style" />
+              <View style={styles.archGrid}>
+                {ARCH_STYLES.filter((arch) => 
+                  arch.value !== "double_arch" || 
+                  draft.gateStyle === "double_swing" || 
+                  draft.gateStyle === "cantilever_slide"
+                ).map((arch) => (
+                  <Pressable
+                    key={arch.value}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      updateDraft({
+                        params: { ...draft.params, archStyle: arch.value },
+                      });
+                    }}
+                    style={[
+                      styles.archCard,
+                      { backgroundColor: theme.backgroundSecondary },
+                      (draft.params.archStyle || "flat") === arch.value && {
+                        borderColor: theme.accent,
+                        borderWidth: 2,
+                      },
+                    ]}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.archLabel,
+                        (draft.params.archStyle || "flat") === arch.value && {
+                          color: theme.accent,
+                          fontWeight: "600",
+                        },
+                      ]}
+                    >
+                      {arch.label}
+                    </ThemedText>
+                    <ThemedText style={[styles.archDescription, { color: theme.textSecondary }]}>
+                      {arch.description}
+                    </ThemedText>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.section}>
               <SectionHeader title="Add-ons" />
               <AddOnPicker
                 addons={draft.addons}
@@ -575,23 +614,12 @@ const styles = StyleSheet.create({
   previewSection: {
     marginBottom: Spacing.xl,
   },
-  previewCard: {
-    borderRadius: BorderRadius.md,
-    overflow: "hidden",
+  previewInfoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: Spacing.sm,
   },
-  previewImage: {
-    width: "100%",
-    height: 200,
-  },
-  previewBadge: {
-    position: "absolute",
-    bottom: Spacing.sm,
-    left: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-  },
-  previewBadgeText: {
+  previewInfoText: {
     fontSize: 13,
     fontWeight: "500",
   },
@@ -655,6 +683,21 @@ const styles = StyleSheet.create({
   },
   finialLabel: {
     fontSize: 14,
+  },
+  archGrid: {
+    gap: Spacing.sm,
+  },
+  archCard: {
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+  },
+  archLabel: {
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  archDescription: {
+    fontSize: 13,
+    marginTop: Spacing.xs,
   },
   pricingCard: {
     borderRadius: BorderRadius.md,

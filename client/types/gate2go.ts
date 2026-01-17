@@ -20,6 +20,8 @@ export type PicketOrientation = "vertical" | "horizontal";
 
 export type FinialStyle = "none" | "spear" | "ball" | "fleur_de_lis" | "pineapple" | "gothic";
 
+export type ArchStyle = "flat" | "convex" | "concave" | "double_arch";
+
 export interface Money {
   amountCents: number;
   currency: string;
@@ -149,4 +151,11 @@ export const FINIAL_STYLES: { value: FinialStyle; label: string }[] = [
   { value: "fleur_de_lis", label: "Fleur-de-lis" },
   { value: "pineapple", label: "Pineapple" },
   { value: "gothic", label: "Gothic" },
+];
+
+export const ARCH_STYLES: { value: ArchStyle; label: string; description: string }[] = [
+  { value: "flat", label: "Flat Top", description: "Standard flat top edge" },
+  { value: "convex", label: "Arched", description: "Classic curved arch" },
+  { value: "concave", label: "Concave", description: "Inward curving dip" },
+  { value: "double_arch", label: "Double Arch", description: "Two arches for double gates" },
 ];
