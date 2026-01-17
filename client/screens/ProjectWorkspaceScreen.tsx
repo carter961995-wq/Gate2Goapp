@@ -29,10 +29,16 @@ import {
   Material,
   GateDesign,
   GateDesignDraft,
+  AddonLineItem,
+  PicketOrientation,
+  FinialStyle,
   GATE_STYLES,
   GATE_STYLE_IMAGES,
   MATERIALS,
+  PICKET_ORIENTATIONS,
+  FINIAL_STYLES,
 } from "@/types/gate2go";
+import { AddOnPicker } from "@/components/AddOnPicker";
 import { calculateBasePrice, calculateTotalPrice, formatMoney } from "@/lib/pricing";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
@@ -390,19 +396,73 @@ export default function ProjectWorkspaceScreen() {
           </>
         ) : (
           <>
+            {draft.material === "wood" ? (
+              <View style={styles.section}>
+                <SectionHeader title="Picket Style" />
+                <View style={styles.cardsGrid}>
+                  {PICKET_ORIENTATIONS.map((orientation) => (
+                    <View key={orientation.value} style={styles.cardWrapper}>
+                      <VisualCard
+                        title={orientation.label}
+                        icon={orientation.value === "vertical" ? "align-center" : "align-justify"}
+                        isSelected={(draft.params.picketOrientation || "vertical") === orientation.value}
+                        onPress={() =>
+                          updateDraft({
+                            params: { ...draft.params, picketOrientation: orientation.value },
+                          })
+                        }
+                      />
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            {draft.material === "steel" ? (
+              <View style={styles.section}>
+                <SectionHeader title="Finial Style" />
+                <View style={styles.finialsGrid}>
+                  {FINIAL_STYLES.map((finial) => (
+                    <Pressable
+                      key={finial.value}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        updateDraft({
+                          params: { ...draft.params, finialStyle: finial.value },
+                        });
+                      }}
+                      style={[
+                        styles.finialChip,
+                        { backgroundColor: theme.backgroundSecondary },
+                        (draft.params.finialStyle || "none") === finial.value && {
+                          borderColor: theme.accent,
+                          borderWidth: 2,
+                        },
+                      ]}
+                    >
+                      <ThemedText
+                        style={[
+                          styles.finialLabel,
+                          (draft.params.finialStyle || "none") === finial.value && {
+                            color: theme.accent,
+                            fontWeight: "600",
+                          },
+                        ]}
+                      >
+                        {finial.label}
+                      </ThemedText>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
             <View style={styles.section}>
               <SectionHeader title="Add-ons" />
-              <View
-                style={[
-                  styles.comingSoonCard,
-                  { backgroundColor: theme.backgroundSecondary },
-                ]}
-              >
-                <Feather name="package" size={24} color={theme.textSecondary} />
-                <ThemedText style={{ color: theme.textSecondary }}>
-                  Add-ons configuration coming soon
-                </ThemedText>
-              </View>
+              <AddOnPicker
+                addons={draft.addons}
+                onAddonsChange={(addons) => updateDraft({ addons })}
+              />
             </View>
 
             <View style={styles.section}>
@@ -419,6 +479,19 @@ export default function ProjectWorkspaceScreen() {
                     {formatMoney(draft.basePriceCents)}
                   </ThemedText>
                 </View>
+                {draft.addons.length > 0 ? (
+                  <View style={styles.pricingRow}>
+                    <ThemedText>Add-ons ({draft.addons.length})</ThemedText>
+                    <ThemedText style={styles.pricingValue}>
+                      {formatMoney(
+                        draft.addons.reduce(
+                          (sum, a) => sum + a.contractorCost.amountCents * a.quantity,
+                          0
+                        )
+                      )}
+                    </ThemedText>
+                  </View>
+                ) : null}
                 <View style={styles.pricingRow}>
                   <ThemedText>Labor</ThemedText>
                   <ThemedText style={styles.pricingValue}>
@@ -570,12 +643,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.sm,
   },
-  comingSoonCard: {
-    borderRadius: BorderRadius.md,
-    padding: Spacing.xl,
-    alignItems: "center",
-    justifyContent: "center",
+  finialsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: Spacing.sm,
+  },
+  finialChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+  },
+  finialLabel: {
+    fontSize: 14,
   },
   pricingCard: {
     borderRadius: BorderRadius.md,

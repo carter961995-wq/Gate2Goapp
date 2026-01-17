@@ -10,11 +10,15 @@ export type Material = "wood" | "steel" | "chain_link" | "aluminum_basic";
 
 export type SubscriptionTier = "essential" | "premium";
 
-export type AddonType = "keypad" | "drop_rod" | "latch" | "opener";
+export type AddonType = "keypad" | "latch" | "opener" | "hinges" | "wheels" | "lock";
 
 export type OpenerBrand = "liftmaster" | "ghost_control" | "doorking";
 
 export type OpenerOperatorType = "slide" | "swing" | "dual_swing";
+
+export type PicketOrientation = "vertical" | "horizontal";
+
+export type FinialStyle = "none" | "spear" | "ball" | "fleur_de_lis" | "pineapple" | "gothic";
 
 export interface Money {
   amountCents: number;
@@ -123,9 +127,25 @@ export const MATERIALS: { value: Material; label: string; icon: string }[] = [
   { value: "aluminum_basic", label: "Aluminum", icon: "layers" },
 ];
 
-export const ADDON_OPTIONS: { type: AddonType; label: string; defaultCostCents: number }[] = [
-  { type: "keypad", label: "Keypad", defaultCostCents: 35000 },
-  { type: "latch", label: "Latch", defaultCostCents: 15000 },
-  { type: "drop_rod", label: "Drop Rod", defaultCostCents: 12000 },
-  { type: "opener", label: "Gate Opener", defaultCostCents: 85000 },
+export const ADDON_OPTIONS: { type: AddonType; label: string; icon: string; defaultCostCents: number }[] = [
+  { type: "keypad", label: "Keypad", icon: "hash", defaultCostCents: 35000 },
+  { type: "latch", label: "Latch", icon: "lock", defaultCostCents: 15000 },
+  { type: "opener", label: "Gate Opener", icon: "zap", defaultCostCents: 85000 },
+  { type: "hinges", label: "Heavy Duty Hinges", icon: "link-2", defaultCostCents: 25000 },
+  { type: "wheels", label: "Wheels", icon: "circle", defaultCostCents: 18000 },
+  { type: "lock", label: "Security Lock", icon: "shield", defaultCostCents: 12000 },
+];
+
+export const PICKET_ORIENTATIONS: { value: PicketOrientation; label: string }[] = [
+  { value: "vertical", label: "Vertical Pickets" },
+  { value: "horizontal", label: "Horizontal Slats" },
+];
+
+export const FINIAL_STYLES: { value: FinialStyle; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "spear", label: "Spear" },
+  { value: "ball", label: "Ball" },
+  { value: "fleur_de_lis", label: "Fleur-de-lis" },
+  { value: "pineapple", label: "Pineapple" },
+  { value: "gothic", label: "Gothic" },
 ];
