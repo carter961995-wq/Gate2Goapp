@@ -8,9 +8,13 @@ Gate2Go is a gate design and pricing application for contractors. Ported from Sw
 - **Subscription System**: Essential and Premium tiers (MVP uses local toggle)
 - **Projects Management**: Create, view, and manage gate design projects
 - **Gate Design**: Select gate styles, materials, and dimensions
+- **Visual Gate Designer**: SVG canvas preview with live customization
+- **Add-ons System**: 6 hardware add-ons (keypad, latch, opener, hinges, wheels, lock)
 - **Pricing Calculator**: Base price calculation with markup, labor, and tax
 - **Design Versions**: Save and view multiple design versions per project
 - **Photo Integration**: Import jobsite photos using device camera/gallery
+- **PDF Proposals**: Generate and share professional PDF proposals
+- **Company Branding**: Custom logo, company name, phone, and email on proposals
 
 ## App Structure
 
@@ -32,6 +36,9 @@ Gate2Go is a gate design and pricing application for contractors. Ported from Sw
 
 ### Core Components
 - `VisualCard` - Selectable cards for gate styles and materials
+- `GateDesigner` - SVG canvas rendering gate preview with customization
+- `GateStyleCard` - Gate style selection cards with images
+- `AddOnPicker` - Hardware add-on selection component
 - `PhotoPicker` - Image picker for jobsite photos
 - `ProjectCard` - Project list item card
 - `EmptyState` - Empty list state display
