@@ -6,6 +6,8 @@ import {
   SubscriptionTier,
 } from "@/types/gate2go";
 import * as storage from "@/lib/storage";
+import * as subscriptions from "@/lib/subscriptions";
+import { CustomerInfo, PurchasesPackage, PurchasesOffering } from "react-native-purchases";
 
 interface AppContextType {
   settings: AppSettings;
@@ -22,6 +24,11 @@ interface AppContextType {
   getProjectDesigns: (projectId: string) => GateDesign[];
   isPremiumLocked: (requiredTier: SubscriptionTier) => boolean;
   refreshData: () => Promise<void>;
+  offerings: PurchasesOffering | null;
+  customerInfo: CustomerInfo | null;
+  purchasePackage: (pkg: PurchasesPackage) => Promise<boolean>;
+  restorePurchases: () => Promise<boolean>;
+  subscriptionStatus: subscriptions.SubscriptionStatus;
 }
 
 const defaultSettings: AppSettings = {
@@ -34,6 +41,7 @@ const defaultSettings: AppSettings = {
   brandingCompanyName: "",
   brandingPhone: "",
   brandingEmail: "",
+  brandingLogoUri: "",
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -43,6 +51,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [designs, setDesigns] = useState<GateDesign[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [offerings, setOfferings] = useState<PurchasesOffering | null>(null);
+  const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
+
+  const subscriptionStatus = subscriptions.getSubscriptionStatus(customerInfo);
 
   const refreshData = useCallback(async () => {
     try {
@@ -66,9 +78,56 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const initSubscriptions = useCallback(async () => {
+    try {
+      await subscriptions.initializePurchases();
+      const [loadedOfferings, loadedCustomerInfo] = await Promise.all([
+        subscriptions.getOfferings(),
+        subscriptions.getCustomerInfo(),
+      ]);
+      setOfferings(loadedOfferings);
+      setCustomerInfo(loadedCustomerInfo);
+
+      subscriptions.addCustomerInfoUpdateListener((info) => {
+        setCustomerInfo(info);
+      });
+    } catch (error) {
+      console.error("Failed to initialize subscriptions:", error);
+    }
+  }, []);
+
   useEffect(() => {
     refreshData();
-  }, [refreshData]);
+    initSubscriptions();
+  }, [refreshData, initSubscriptions]);
+
+  const purchasePackage = useCallback(async (pkg: PurchasesPackage): Promise<boolean> => {
+    try {
+      const info = await subscriptions.purchasePackage(pkg);
+      if (info) {
+        setCustomerInfo(info);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Purchase failed:", error);
+      return false;
+    }
+  }, []);
+
+  const restorePurchasesHandler = useCallback(async (): Promise<boolean> => {
+    try {
+      const info = await subscriptions.restorePurchases();
+      if (info) {
+        setCustomerInfo(info);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Restore failed:", error);
+      return false;
+    }
+  }, []);
 
   const updateSettings = useCallback(async (updates: Partial<AppSettings>) => {
     const newSettings = { ...settings, ...updates };
@@ -143,6 +202,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getProjectDesigns,
         isPremiumLocked,
         refreshData,
+        offerings,
+        customerInfo,
+        purchasePackage,
+        restorePurchases: restorePurchasesHandler,
+        subscriptionStatus,
       }}
     >
       {children}
