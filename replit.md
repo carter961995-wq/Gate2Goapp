@@ -5,7 +5,8 @@ Gate2Go is a gate design and pricing application for contractors. Ported from Sw
 
 ## Features
 - **Onboarding**: 3-page introduction with feature highlights
-- **Subscription System**: Essential and Premium tiers (MVP uses local toggle)
+- **Subscription System**: Gate2Go Pro subscription (monthly, yearly, lifetime) via RevenueCat
+- **Single Design Purchase**: $2.99 one-time purchase for homeowners (1 gate design credit)
 - **Projects Management**: Create, view, and manage gate design projects
 - **Gate Design**: Select gate styles, materials, and dimensions
 - **Visual Gate Designer**: SVG canvas preview with live customization

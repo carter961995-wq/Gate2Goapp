@@ -15,6 +15,7 @@ export const PRODUCT_IDS = {
   MONTHLY: "monthly",
   YEARLY: "yearly",
   LIFETIME: "lifetime",
+  SINGLE_DESIGN: "single_gate_design",
 };
 
 export type SubscriptionTier = "free" | "pro";
@@ -217,6 +218,31 @@ export async function logOut(): Promise<CustomerInfo | null> {
   } catch (error) {
     console.error("Failed to log out:", error);
     return null;
+  }
+}
+
+export async function purchaseSingleDesign(): Promise<{ success: boolean; customerInfo: CustomerInfo | null }> {
+  try {
+    const offerings = await Purchases.getOfferings();
+    const allPackages = offerings.current?.availablePackages || [];
+    const singleDesignPackage = allPackages.find(
+      (pkg) => pkg.product.identifier === PRODUCT_IDS.SINGLE_DESIGN
+    );
+
+    if (!singleDesignPackage) {
+      console.error("Single design package not found");
+      return { success: false, customerInfo: null };
+    }
+
+    const { customerInfo } = await Purchases.purchasePackage(singleDesignPackage);
+    return { success: true, customerInfo };
+  } catch (error: any) {
+    if (error.userCancelled) {
+      console.log("User cancelled purchase");
+      return { success: false, customerInfo: null };
+    }
+    console.error("Single design purchase failed:", error);
+    throw error;
   }
 }
 

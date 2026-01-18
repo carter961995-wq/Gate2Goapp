@@ -43,6 +43,7 @@ const defaultSettings: AppSettings = {
   brandingPhone: "",
   brandingEmail: "",
   brandingLogoUri: "",
+  designCredits: 0,
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { StyleSheet, View, ScrollView, Pressable, Alert, ActivityIndicator, Platform } from "react-native";
+import React, { useState } from "react";
+import { StyleSheet, View, ScrollView, Pressable, Alert, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
@@ -9,19 +9,26 @@ import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { useApp } from "@/context/AppContext";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { presentPaywall, restorePurchases } from "@/lib/subscriptions";
+import { presentPaywall, restorePurchases, purchaseSingleDesign } from "@/lib/subscriptions";
 
-const FEATURES = [
+const PRO_FEATURES = [
   { icon: "grid", label: "All gate styles and materials" },
   { icon: "image", label: "Visual designer with live preview" },
   { icon: "file-text", label: "Unlimited projects and proposals" },
   { icon: "star", label: "Priority support" },
 ];
 
+const SINGLE_FEATURES = [
+  { icon: "check", label: "Create 1 complete gate design" },
+  { icon: "file-text", label: "Generate professional PDF proposal" },
+  { icon: "share-2", label: "Share with your client" },
+];
+
 export default function PaywallScreen() {
   const { theme } = useTheme();
-  const { updateSettings, refreshSubscriptionStatus } = useApp();
+  const { settings, updateSettings, refreshSubscriptionStatus } = useApp();
   const [isLoading, setIsLoading] = useState(false);
+  const [isBuyingSingle, setIsBuyingSingle] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
 
   const handleSubscribe = async () => {
@@ -44,6 +51,31 @@ export default function PaywallScreen() {
       Alert.alert("Error", "Unable to load subscription options. Please try again.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleBuySingleDesign = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsBuyingSingle(true);
+    
+    try {
+      const result = await purchaseSingleDesign();
+      
+      if (result.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const currentCredits = settings.designCredits || 0;
+        await updateSettings({ designCredits: currentCredits + 1 });
+        Alert.alert(
+          "Purchase Complete",
+          "You now have 1 design credit. Create your gate design and generate a proposal!",
+          [{ text: "Let's Go" }]
+        );
+      }
+    } catch (error) {
+      console.error("Single design purchase error:", error);
+      Alert.alert("Error", "Unable to complete purchase. Please try again.");
+    } finally {
+      setIsBuyingSingle(false);
     }
   };
 
@@ -74,83 +106,106 @@ export default function PaywallScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <View style={[styles.iconContainer, { backgroundColor: theme.accent + "20" }]}>
-            <Feather name="star" size={48} color={theme.accent} />
-          </View>
-          <ThemedText style={styles.title}>Gate2Go Pro</ThemedText>
+          <ThemedText style={styles.title}>Choose Your Option</ThemedText>
           <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Unlock all features and take your gate business to the next level.
+            Design professional gates and create proposals for your clients.
           </ThemedText>
         </View>
 
         <View
           style={[
-            styles.featuresCard,
+            styles.optionCard,
+            { backgroundColor: theme.backgroundSecondary, borderColor: theme.accent },
+          ]}
+        >
+          <View style={styles.optionHeader}>
+            <View style={[styles.iconContainer, { backgroundColor: theme.accent + "20" }]}>
+              <Feather name="star" size={24} color={theme.accent} />
+            </View>
+            <View style={styles.optionTitleContainer}>
+              <ThemedText style={styles.optionTitle}>Gate2Go Pro</ThemedText>
+              <ThemedText style={[styles.optionSubtitle, { color: theme.textSecondary }]}>
+                For contractors and professionals
+              </ThemedText>
+            </View>
+          </View>
+          
+          <View style={styles.featuresList}>
+            {PRO_FEATURES.map((feature, index) => (
+              <View key={index} style={styles.featureRow}>
+                <View style={[styles.checkIcon, { backgroundColor: theme.success + "20" }]}>
+                  <Feather name="check" size={12} color={theme.success} />
+                </View>
+                <ThemedText style={styles.featureText}>
+                  {feature.label}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
+
+          <Button onPress={handleSubscribe} style={styles.optionButton} disabled={isLoading}>
+            {isLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              "View Pro Plans"
+            )}
+          </Button>
+        </View>
+
+        <View style={styles.dividerContainer}>
+          <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+          <ThemedText style={[styles.dividerText, { color: theme.textSecondary }]}>or</ThemedText>
+          <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+        </View>
+
+        <View
+          style={[
+            styles.optionCard,
             { backgroundColor: theme.backgroundSecondary },
           ]}
         >
-          <ThemedText style={styles.featuresTitle}>What's included</ThemedText>
-          {FEATURES.map((feature, index) => (
-            <View key={index} style={styles.featureRow}>
-              <View style={[styles.checkIcon, { backgroundColor: theme.success + "20" }]}>
-                <Feather name="check" size={14} color={theme.success} />
+          <View style={styles.optionHeader}>
+            <View style={[styles.iconContainer, { backgroundColor: theme.success + "20" }]}>
+              <Feather name="home" size={24} color={theme.success} />
+            </View>
+            <View style={styles.optionTitleContainer}>
+              <View style={styles.priceRow}>
+                <ThemedText style={styles.optionTitle}>Single Design</ThemedText>
+                <ThemedText style={[styles.priceTag, { color: theme.success }]}>$2.99</ThemedText>
               </View>
-              <ThemedText style={styles.featureText}>
-                {feature.label}
+              <ThemedText style={[styles.optionSubtitle, { color: theme.textSecondary }]}>
+                Perfect for homeowners
               </ThemedText>
             </View>
-          ))}
-        </View>
+          </View>
+          
+          <View style={styles.featuresList}>
+            {SINGLE_FEATURES.map((feature, index) => (
+              <View key={index} style={styles.featureRow}>
+                <View style={[styles.checkIcon, { backgroundColor: theme.success + "20" }]}>
+                  <Feather name="check" size={12} color={theme.success} />
+                </View>
+                <ThemedText style={styles.featureText}>
+                  {feature.label}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
 
-        <View style={[styles.plansCard, { backgroundColor: theme.backgroundSecondary }]}>
-          <ThemedText style={styles.plansTitle}>Choose your plan</ThemedText>
-          
-          <View style={styles.planOption}>
-            <View>
-              <ThemedText style={styles.planName}>Monthly</ThemedText>
-              <ThemedText style={[styles.planDetail, { color: theme.textSecondary }]}>
-                Billed monthly, cancel anytime
+          <Pressable 
+            onPress={handleBuySingleDesign} 
+            style={[styles.secondaryButton, { borderColor: theme.accent }]}
+            disabled={isBuyingSingle}
+          >
+            {isBuyingSingle ? (
+              <ActivityIndicator color={theme.accent} />
+            ) : (
+              <ThemedText style={[styles.secondaryButtonText, { color: theme.accent }]}>
+                Buy Single Design - $2.99
               </ThemedText>
-            </View>
-          </View>
-          
-          <View style={[styles.planDivider, { backgroundColor: theme.border }]} />
-          
-          <View style={styles.planOption}>
-            <View>
-              <ThemedText style={styles.planName}>Yearly</ThemedText>
-              <ThemedText style={[styles.planDetail, { color: theme.textSecondary }]}>
-                Best value - save over 30%
-              </ThemedText>
-            </View>
-            <View style={[styles.saveBadge, { backgroundColor: theme.success }]}>
-              <ThemedText style={styles.saveText}>Best Value</ThemedText>
-            </View>
-          </View>
-          
-          <View style={[styles.planDivider, { backgroundColor: theme.border }]} />
-          
-          <View style={styles.planOption}>
-            <View>
-              <ThemedText style={styles.planName}>Lifetime</ThemedText>
-              <ThemedText style={[styles.planDetail, { color: theme.textSecondary }]}>
-                One-time purchase, forever access
-              </ThemedText>
-            </View>
-          </View>
+            )}
+          </Pressable>
         </View>
-
-        <Button onPress={handleSubscribe} style={styles.ctaButton} disabled={isLoading}>
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            "View Subscription Options"
-          )}
-        </Button>
-        
-        <ThemedText style={[styles.billingNote, { color: theme.textSecondary }]}>
-          Subscription automatically renews unless canceled at least 24 hours before the end of the current period.
-        </ThemedText>
 
         <Pressable onPress={handleRestore} style={styles.restoreButton} disabled={isRestoring}>
           {isRestoring ? (
@@ -171,109 +226,115 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: Spacing["2xl"],
-    paddingTop: Spacing["4xl"],
+    padding: Spacing.xl,
+    paddingTop: Spacing["2xl"],
   },
   header: {
     alignItems: "center",
-    gap: Spacing.md,
-    marginBottom: Spacing["2xl"],
-  },
-  iconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
+    marginBottom: Spacing.xl,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "700",
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     lineHeight: 22,
     textAlign: "center",
-    paddingHorizontal: Spacing.lg,
   },
-  featuresCard: {
+  optionCard: {
     borderRadius: BorderRadius.lg,
-    padding: Spacing.xl,
-    marginBottom: Spacing.xl,
-    gap: Spacing.lg,
+    padding: Spacing.lg,
+    borderWidth: 2,
+    borderColor: "transparent",
   },
-  featuresTitle: {
+  optionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  optionTitleContainer: {
+    flex: 1,
+  },
+  optionTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    marginBottom: Spacing.xs,
+    fontWeight: "700",
+  },
+  optionSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  priceTag: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  featuresList: {
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
   featureRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   checkIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
   featureText: {
-    fontSize: 15,
+    fontSize: 14,
     flex: 1,
   },
-  plansCard: {
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.xl,
-    marginBottom: Spacing.xl,
+  optionButton: {
+    marginTop: Spacing.xs,
   },
-  plansTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: Spacing.lg,
-  },
-  planOption: {
+  dividerContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: Spacing.sm,
+    marginVertical: Spacing.lg,
+    gap: Spacing.md,
   },
-  planName: {
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  secondaryButton: {
+    borderWidth: 2,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: Spacing.xs,
+  },
+  secondaryButtonText: {
     fontSize: 16,
     fontWeight: "600",
   },
-  planDetail: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  planDivider: {
-    height: 1,
-    marginVertical: Spacing.sm,
-  },
-  saveBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.xs,
-  },
-  saveText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  ctaButton: {
-    marginBottom: Spacing.md,
-  },
-  billingNote: {
-    fontSize: 12,
-    textAlign: "center",
-    lineHeight: 18,
-    marginBottom: Spacing.xl,
-  },
   restoreButton: {
     alignItems: "center",
-    padding: Spacing.md,
+    padding: Spacing.lg,
+    marginTop: Spacing.md,
   },
   restoreText: {
     fontSize: 15,
