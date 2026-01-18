@@ -141,6 +141,14 @@ export async function clearAllData(): Promise<void> {
   }
 }
 
+export async function resetAllSettings(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEYS.SETTINGS);
+  } catch (error) {
+    console.error("Failed to reset settings:", error);
+  }
+}
+
 export function isPremiumLocked(
   tier: SubscriptionTier,
   requiredTier: SubscriptionTier,

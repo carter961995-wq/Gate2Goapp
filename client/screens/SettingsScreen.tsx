@@ -15,6 +15,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useApp } from "@/context/AppContext";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import * as storage from "@/lib/storage";
+import { reloadAppAsync } from "expo";
 import { restorePurchases, presentCustomerCenter } from "@/lib/subscriptions";
 
 export default function SettingsScreen() {
@@ -102,6 +103,26 @@ export default function SettingsScreen() {
   const handleResetOnboarding = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     updateSettings({ hasCompletedOnboarding: false });
+  };
+
+  const handleFullReset = () => {
+    Alert.alert(
+      "Reset Entire App",
+      "This will reset all settings, show onboarding again, and clear subscription status. Use this to test the full app flow.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reset Everything",
+          style: "destructive",
+          onPress: async () => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            await storage.resetAllSettings();
+            await storage.clearAllData();
+            reloadAppAsync();
+          },
+        },
+      ]
+    );
   };
 
   const handlePickLogo = async () => {
@@ -332,6 +353,15 @@ export default function SettingsScreen() {
             <Feather name="trash-2" size={18} color={theme.error} />
             <ThemedText style={[styles.buttonText, { color: theme.error }]}>
               Delete All Data
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={handleFullReset}
+            style={[styles.button, { backgroundColor: theme.error + "15" }]}
+          >
+            <Feather name="refresh-cw" size={18} color={theme.error} />
+            <ThemedText style={[styles.buttonText, { color: theme.error }]}>
+              Reset Entire App (Test Flow)
             </ThemedText>
           </Pressable>
         </View>
