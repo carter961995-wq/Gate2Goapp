@@ -1,5 +1,5 @@
-import React from "react";
-import { StyleSheet, View, Alert, Pressable, Image } from "react-native";
+import React, { useState } from "react";
+import { StyleSheet, View, Alert, Pressable, Image, ActivityIndicator } from "react-native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
@@ -15,19 +15,48 @@ import { useTheme } from "@/hooks/useTheme";
 import { useApp } from "@/context/AppContext";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import * as storage from "@/lib/storage";
+import { restorePurchases, presentCustomerCenter } from "@/lib/subscriptions";
 
 export default function SettingsScreen() {
   const { theme } = useTheme();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
-  const { settings, updateSettings, refreshData } = useApp();
+  const { settings, updateSettings, refreshData, subscriptionStatus, refreshSubscriptionStatus } = useApp();
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [isLoadingCustomerCenter, setIsLoadingCustomerCenter] = useState(false);
 
-  const handleRestorePurchases = () => {
+  const handleRestorePurchases = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    updateSettings({
-      hasActiveSubscription: true,
-      subscriptionTier: "premium",
-    });
+    setIsRestoring(true);
+    
+    try {
+      const customerInfo = await restorePurchases();
+      if (customerInfo) {
+        await refreshSubscriptionStatus();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("Restored", "Your purchases have been restored.");
+      } else {
+        Alert.alert("No Purchases Found", "No previous purchases were found for this account.");
+      }
+    } catch (error) {
+      Alert.alert("Restore Failed", "Unable to restore purchases. Please try again.");
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsLoadingCustomerCenter(true);
+    
+    try {
+      await presentCustomerCenter();
+      await refreshSubscriptionStatus();
+    } catch (error) {
+      Alert.alert("Error", "Unable to open subscription management. Please try again.");
+    } finally {
+      setIsLoadingCustomerCenter(false);
+    }
   };
 
   const handleEndSubscription = () => {
@@ -120,42 +149,68 @@ export default function SettingsScreen() {
               <ThemedText>Status</ThemedText>
               <ThemedText
                 style={{
-                  color: settings.hasActiveSubscription
+                  color: subscriptionStatus.isActive
                     ? theme.success
                     : theme.textSecondary,
                   fontWeight: "500",
                 }}
               >
-                {settings.hasActiveSubscription ? "Active" : "Inactive"}
+                {subscriptionStatus.isActive ? "Active" : "Inactive"}
               </ThemedText>
             </View>
             <View style={styles.row}>
-              <ThemedText>Tier</ThemedText>
+              <ThemedText>Plan</ThemedText>
               <ThemedText style={{ fontWeight: "500" }}>
-                {settings.subscriptionTier === "premium" ? "Premium" : "Essential"}
+                {subscriptionStatus.isActive 
+                  ? subscriptionStatus.isLifetime 
+                    ? "Lifetime" 
+                    : "Gate2Go Pro"
+                  : "Free"}
               </ThemedText>
             </View>
+            {subscriptionStatus.expirationDate ? (
+              <View style={styles.row}>
+                <ThemedText>Renews</ThemedText>
+                <ThemedText style={{ color: theme.textSecondary }}>
+                  {new Date(subscriptionStatus.expirationDate).toLocaleDateString()}
+                </ThemedText>
+              </View>
+            ) : null}
           </View>
+          {subscriptionStatus.isActive ? (
+            <Pressable
+              onPress={handleManageSubscription}
+              style={[styles.button, { backgroundColor: theme.backgroundSecondary }]}
+              disabled={isLoadingCustomerCenter}
+            >
+              {isLoadingCustomerCenter ? (
+                <ActivityIndicator color={theme.accent} size="small" />
+              ) : (
+                <>
+                  <Feather name="settings" size={18} color={theme.accent} />
+                  <ThemedText style={[styles.buttonText, { color: theme.accent }]}>
+                    Manage Subscription
+                  </ThemedText>
+                </>
+              )}
+            </Pressable>
+          ) : null}
           <Pressable
             onPress={handleRestorePurchases}
             style={[styles.button, { backgroundColor: theme.backgroundSecondary }]}
+            disabled={isRestoring}
           >
-            <Feather name="refresh-cw" size={18} color={theme.accent} />
-            <ThemedText style={[styles.buttonText, { color: theme.accent }]}>
-              Restore Purchases
-            </ThemedText>
+            {isRestoring ? (
+              <ActivityIndicator color={theme.accent} size="small" />
+            ) : (
+              <>
+                <Feather name="refresh-cw" size={18} color={theme.accent} />
+                <ThemedText style={[styles.buttonText, { color: theme.accent }]}>
+                  Restore Purchases
+                </ThemedText>
+              </>
+            )}
           </Pressable>
-          {settings.hasActiveSubscription ? (
-            <Pressable
-              onPress={handleEndSubscription}
-              style={[styles.button, { backgroundColor: theme.backgroundSecondary }]}
-            >
-              <Feather name="x-circle" size={18} color={theme.error} />
-              <ThemedText style={[styles.buttonText, { color: theme.error }]}>
-                End Subscription (Testing)
-              </ThemedText>
-            </Pressable>
-          ) : null}
         </View>
 
         <View style={styles.section}>

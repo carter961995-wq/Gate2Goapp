@@ -29,6 +29,7 @@ interface AppContextType {
   purchasePackage: (pkg: PurchasesPackage) => Promise<boolean>;
   restorePurchases: () => Promise<boolean>;
   subscriptionStatus: subscriptions.SubscriptionStatus;
+  refreshSubscriptionStatus: () => Promise<void>;
 }
 
 const defaultSettings: AppSettings = {
@@ -129,6 +130,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshSubscriptionStatus = useCallback(async () => {
+    try {
+      const info = await subscriptions.getCustomerInfo();
+      setCustomerInfo(info);
+    } catch (error) {
+      console.error("Failed to refresh subscription status:", error);
+    }
+  }, []);
+
   const updateSettings = useCallback(async (updates: Partial<AppSettings>) => {
     const newSettings = { ...settings, ...updates };
     setSettings(newSettings);
@@ -207,6 +217,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         purchasePackage,
         restorePurchases: restorePurchasesHandler,
         subscriptionStatus,
+        refreshSubscriptionStatus,
       }}
     >
       {children}

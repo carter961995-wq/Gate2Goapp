@@ -1,70 +1,49 @@
-import React, { useState, useMemo } from "react";
-import { StyleSheet, View, ScrollView, Pressable, Alert, ActivityIndicator } from "react-native";
+import React, { useState, useEffect } from "react";
+import { StyleSheet, View, ScrollView, Pressable, Alert, ActivityIndicator, Platform } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { PurchasesPackage } from "react-native-purchases";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { Button } from "@/components/Button";
-import { VisualCard } from "@/components/VisualCard";
 import { useTheme } from "@/hooks/useTheme";
 import { useApp } from "@/context/AppContext";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { SubscriptionTier } from "@/types/gate2go";
-import { formatPrice, getPeriodLabel } from "@/lib/subscriptions";
-
-type BillingPeriod = "monthly" | "yearly";
+import { presentPaywall, restorePurchases } from "@/lib/subscriptions";
 
 const FEATURES = [
-  { icon: "grid", label: "Visual card selection for every option" },
-  { icon: "image", label: "Live Preview & Photoreal Generate" },
-  { icon: "file-text", label: "Projects, variants & export" },
+  { icon: "grid", label: "All gate styles and materials" },
+  { icon: "image", label: "Visual designer with live preview" },
+  { icon: "file-text", label: "Unlimited projects and proposals" },
+  { icon: "star", label: "Priority support" },
 ];
 
 export default function PaywallScreen() {
   const { theme } = useTheme();
-  const { updateSettings, offerings, purchasePackage, restorePurchases } = useApp();
-  const [selectedTier, setSelectedTier] = useState<SubscriptionTier>("premium");
-  const [billing, setBilling] = useState<BillingPeriod>("monthly");
-  const [isPurchasing, setIsPurchasing] = useState(false);
+  const { updateSettings, refreshSubscriptionStatus } = useApp();
+  const [isLoading, setIsLoading] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
 
-  const selectedPackage = useMemo(() => {
-    if (!offerings?.availablePackages) return null;
-    
-    const identifier = `gate2go_${selectedTier}_${billing}`;
-    return offerings.availablePackages.find(
-      (pkg) => pkg.identifier.toLowerCase().includes(selectedTier) && 
-               pkg.identifier.toLowerCase().includes(billing.replace("ly", ""))
-    ) || offerings.availablePackages[0];
-  }, [offerings, selectedTier, billing]);
-
-  const handleStartTrial = async () => {
+  const handleSubscribe = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsLoading(true);
     
-    if (selectedPackage) {
-      setIsPurchasing(true);
-      try {
-        const success = await purchasePackage(selectedPackage);
-        if (success) {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          updateSettings({
-            hasActiveSubscription: true,
-            subscriptionTier: selectedTier,
-          });
-        }
-      } catch (error) {
-        Alert.alert("Purchase Failed", "Unable to complete the purchase. Please try again.");
-      } finally {
-        setIsPurchasing(false);
+    try {
+      const result = await presentPaywall();
+      
+      if (result.purchased) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        await refreshSubscriptionStatus();
+        updateSettings({
+          hasActiveSubscription: true,
+          subscriptionTier: "premium",
+        });
       }
-    } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      updateSettings({
-        hasActiveSubscription: true,
-        subscriptionTier: selectedTier,
-      });
+    } catch (error) {
+      console.error("Paywall error:", error);
+      Alert.alert("Error", "Unable to load subscription options. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -73,8 +52,9 @@ export default function PaywallScreen() {
     setIsRestoring(true);
     
     try {
-      const success = await restorePurchases();
-      if (success) {
+      const customerInfo = await restorePurchases();
+      if (customerInfo) {
+        await refreshSubscriptionStatus();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert("Restored", "Your purchases have been restored.");
       } else {
@@ -87,16 +67,6 @@ export default function PaywallScreen() {
     }
   };
 
-  const getPriceDisplay = () => {
-    if (selectedPackage) {
-      return `${formatPrice(selectedPackage)} ${getPeriodLabel(selectedPackage)}`;
-    }
-    if (selectedTier === "essential") {
-      return billing === "monthly" ? "$4.99/month" : "$39.99/year";
-    }
-    return billing === "monthly" ? "$9.99/month" : "$79.99/year";
-  };
-
   return (
     <ThemedView style={styles.container}>
       <ScrollView
@@ -104,86 +74,12 @@ export default function PaywallScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <ThemedText style={styles.title}>Gate2Go</ThemedText>
-          <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Start your 7-day free trial. Choose Essential or Premium.
-          </ThemedText>
-        </View>
-
-        <View style={styles.tiersContainer}>
-          <View style={styles.tierRow}>
-            <VisualCard
-              title="Essential"
-              subtitle="Core styles + Wood/Steel"
-              icon="check-circle"
-              isSelected={selectedTier === "essential"}
-              onPress={() => setSelectedTier("essential")}
-            />
-            <VisualCard
-              title="Premium"
-              subtitle="All styles + materials + openers"
-              icon="star"
-              isSelected={selectedTier === "premium"}
-              onPress={() => setSelectedTier("premium")}
-            />
+          <View style={[styles.iconContainer, { backgroundColor: theme.accent + "20" }]}>
+            <Feather name="star" size={48} color={theme.accent} />
           </View>
-        </View>
-
-        <View
-          style={[
-            styles.billingToggle,
-            { backgroundColor: theme.backgroundSecondary },
-          ]}
-        >
-          <Pressable
-            onPress={() => setBilling("monthly")}
-            style={[
-              styles.billingOption,
-              billing === "monthly" && {
-                backgroundColor: theme.backgroundDefault,
-              },
-            ]}
-          >
-            <ThemedText
-              style={[
-                styles.billingText,
-                billing === "monthly" && { fontWeight: "600" },
-              ]}
-            >
-              Monthly
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            onPress={() => setBilling("yearly")}
-            style={[
-              styles.billingOption,
-              billing === "yearly" && {
-                backgroundColor: theme.backgroundDefault,
-              },
-            ]}
-          >
-            <View style={styles.yearlyContent}>
-              <ThemedText
-                style={[
-                  styles.billingText,
-                  billing === "yearly" && { fontWeight: "600" },
-                ]}
-              >
-                Yearly
-              </ThemedText>
-              <View style={[styles.saveBadge, { backgroundColor: theme.success }]}>
-                <ThemedText style={styles.saveText}>Save 33%</ThemedText>
-              </View>
-            </View>
-          </Pressable>
-        </View>
-
-        <View style={[styles.priceCard, { backgroundColor: theme.backgroundSecondary }]}>
-          <ThemedText style={[styles.priceAmount, { color: theme.accent }]}>
-            {getPriceDisplay()}
-          </ThemedText>
-          <ThemedText style={[styles.priceNote, { color: theme.textSecondary }]}>
-            After 7-day free trial
+          <ThemedText style={styles.title}>Gate2Go Pro</ThemedText>
+          <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
+            Unlock all features and take your gate business to the next level.
           </ThemedText>
         </View>
 
@@ -193,34 +89,67 @@ export default function PaywallScreen() {
             { backgroundColor: theme.backgroundSecondary },
           ]}
         >
-          <ThemedText style={styles.featuresTitle}>Includes</ThemedText>
+          <ThemedText style={styles.featuresTitle}>What's included</ThemedText>
           {FEATURES.map((feature, index) => (
             <View key={index} style={styles.featureRow}>
-              <Feather
-                name={feature.icon as any}
-                size={18}
-                color={theme.accent}
-              />
-              <ThemedText
-                style={[styles.featureText, { color: theme.textSecondary }]}
-              >
+              <View style={[styles.checkIcon, { backgroundColor: theme.success + "20" }]}>
+                <Feather name="check" size={14} color={theme.success} />
+              </View>
+              <ThemedText style={styles.featureText}>
                 {feature.label}
               </ThemedText>
             </View>
           ))}
         </View>
 
-        <Button onPress={handleStartTrial} style={styles.ctaButton} disabled={isPurchasing}>
-          {isPurchasing ? (
+        <View style={[styles.plansCard, { backgroundColor: theme.backgroundSecondary }]}>
+          <ThemedText style={styles.plansTitle}>Choose your plan</ThemedText>
+          
+          <View style={styles.planOption}>
+            <View>
+              <ThemedText style={styles.planName}>Monthly</ThemedText>
+              <ThemedText style={[styles.planDetail, { color: theme.textSecondary }]}>
+                Billed monthly, cancel anytime
+              </ThemedText>
+            </View>
+          </View>
+          
+          <View style={[styles.planDivider, { backgroundColor: theme.border }]} />
+          
+          <View style={styles.planOption}>
+            <View>
+              <ThemedText style={styles.planName}>Yearly</ThemedText>
+              <ThemedText style={[styles.planDetail, { color: theme.textSecondary }]}>
+                Best value - save over 30%
+              </ThemedText>
+            </View>
+            <View style={[styles.saveBadge, { backgroundColor: theme.success }]}>
+              <ThemedText style={styles.saveText}>Best Value</ThemedText>
+            </View>
+          </View>
+          
+          <View style={[styles.planDivider, { backgroundColor: theme.border }]} />
+          
+          <View style={styles.planOption}>
+            <View>
+              <ThemedText style={styles.planName}>Lifetime</ThemedText>
+              <ThemedText style={[styles.planDetail, { color: theme.textSecondary }]}>
+                One-time purchase, forever access
+              </ThemedText>
+            </View>
+          </View>
+        </View>
+
+        <Button onPress={handleSubscribe} style={styles.ctaButton} disabled={isLoading}>
+          {isLoading ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            "Start Free Trial"
+            "View Subscription Options"
           )}
         </Button>
+        
         <ThemedText style={[styles.billingNote, { color: theme.textSecondary }]}>
-          {billing === "monthly"
-            ? "Cancel anytime. No commitment."
-            : "Best value. Cancel anytime."}
+          Subscription automatically renews unless canceled at least 24 hours before the end of the current period.
         </ThemedText>
 
         <Pressable onPress={handleRestore} style={styles.restoreButton} disabled={isRestoring}>
@@ -243,79 +172,39 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: Spacing["2xl"],
-    paddingTop: Spacing["5xl"],
+    paddingTop: Spacing["4xl"],
   },
   header: {
-    gap: Spacing.sm,
+    alignItems: "center",
+    gap: Spacing.md,
     marginBottom: Spacing["2xl"],
   },
+  iconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.sm,
+  },
   title: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: "700",
   },
   subtitle: {
     fontSize: 16,
     lineHeight: 22,
-  },
-  tiersContainer: {
-    marginBottom: Spacing.xl,
-  },
-  tierRow: {
-    flexDirection: "row",
-    gap: Spacing.md,
-  },
-  billingToggle: {
-    flexDirection: "row",
-    borderRadius: BorderRadius.sm,
-    padding: 4,
-    marginBottom: Spacing.lg,
-  },
-  billingOption: {
-    flex: 1,
-    paddingVertical: Spacing.sm,
-    alignItems: "center",
-    borderRadius: BorderRadius.xs,
-  },
-  billingText: {
-    fontSize: 15,
-  },
-  yearlyContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.xs,
-  },
-  saveBadge: {
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.xs,
-  },
-  saveText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  priceCard: {
-    borderRadius: BorderRadius.md,
-    padding: Spacing.lg,
-    alignItems: "center",
-    marginBottom: Spacing.lg,
-  },
-  priceAmount: {
-    fontSize: 28,
-    fontWeight: "700",
-  },
-  priceNote: {
-    fontSize: 14,
-    marginTop: Spacing.xs,
+    textAlign: "center",
+    paddingHorizontal: Spacing.lg,
   },
   featuresCard: {
-    borderRadius: BorderRadius.md,
-    padding: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
     marginBottom: Spacing.xl,
-    gap: Spacing.md,
+    gap: Spacing.lg,
   },
   featuresTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "600",
     marginBottom: Spacing.xs,
   },
@@ -324,15 +213,62 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.md,
   },
+  checkIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   featureText: {
     fontSize: 15,
+    flex: 1,
+  },
+  plansCard: {
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    marginBottom: Spacing.xl,
+  },
+  plansTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: Spacing.lg,
+  },
+  planOption: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: Spacing.sm,
+  },
+  planName: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  planDetail: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  planDivider: {
+    height: 1,
+    marginVertical: Spacing.sm,
+  },
+  saveBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.xs,
+  },
+  saveText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   ctaButton: {
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   billingNote: {
-    fontSize: 13,
+    fontSize: 12,
     textAlign: "center",
+    lineHeight: 18,
     marginBottom: Spacing.xl,
   },
   restoreButton: {
