@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import RevenueCat
 
 @main
 struct Gate2GoApp: App {
@@ -25,6 +26,26 @@ struct Gate2GoApp: App {
             fatalError("Could not create ModelContainer: \(error)")
         }
     }()
+    
+    init() {
+        configureRevenueCat()
+    }
+    
+    private func configureRevenueCat() {
+        Purchases.logLevel = .debug
+        Purchases.configure(withAPIKey: "appl_YOUR_REVENUECAT_API_KEY")
+        
+        Purchases.shared.getCustomerInfo { customerInfo, error in
+            if let customerInfo = customerInfo {
+                DispatchQueue.main.async {
+                    if customerInfo.entitlements["Gate2Go Pro"]?.isActive == true {
+                        self.settings.hasActiveSubscription = true
+                        self.settings.subscriptionTier = .premium
+                    }
+                }
+            }
+        }
+    }
 
     var body: some Scene {
         WindowGroup {
