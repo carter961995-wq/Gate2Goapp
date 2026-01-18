@@ -1,8 +1,9 @@
 {
   "expo": {
-    "name": "Gate2Go",
+    "name": "Gate2Go - Fence & Gate Design",
     "slug": "gate2go",
     "version": "1.0.0",
+    "description": "Professional fence and gate design tool for contractors. Create accurate quotes, design custom gates, and generate branded proposals. Features gate layout planner, fence estimator, material calculator, and pricing tools.",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "gate2go",
@@ -10,7 +11,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gate2go.app"
+      "bundleIdentifier": "com.gate2go.app",
+      "infoPlist": {
+        "CFBundleDisplayName": "Gate2Go"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +29,12 @@
     },
     "web": {
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "Gate2Go - Fence & Gate Design Tool",
+      "shortName": "Gate2Go",
+      "description": "Professional fence and gate design tool for contractors. Create quotes, design gates, generate proposals.",
+      "themeColor": "#2563EB",
+      "backgroundColor": "#ffffff"
     },
     "plugins": [
       [
