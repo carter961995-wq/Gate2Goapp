@@ -6,17 +6,12 @@
 //
 
 import SwiftUI
-import RevenueCat
-import RevenueCatUI
 
 struct PaywallView: View {
     @EnvironmentObject private var settings: Gate2GoSettings
-    @State private var isLoadingPaywall = false
-    @State private var isLoadingSinglePurchase = false
+    @Environment(\.dismiss) private var dismiss
     @State private var showError = false
     @State private var errorMessage = ""
-    
-    private let singleDesignProductId = "single_gate_design"
     
     var body: some View {
         ScrollView {
@@ -74,21 +69,17 @@ struct PaywallView: View {
             }
             
             Button {
-                presentRevenueCatPaywall()
+                // TODO: Integrate RevenueCat when ready
+                settings.hasActiveSubscription = true
+                settings.subscriptionTier = .premium
+                dismiss()
             } label: {
-                if isLoadingPaywall {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                } else {
-                    Text("View Pro Plans")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                }
+                Text("Activate Pro (Demo)")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(isLoadingPaywall)
         }
         .padding()
         .background(Color(.systemGray6))
@@ -131,21 +122,16 @@ struct PaywallView: View {
             }
             
             Button {
-                purchaseSingleDesign()
+                // TODO: Integrate RevenueCat when ready
+                settings.addDesignCredit()
+                dismiss()
             } label: {
-                if isLoadingSinglePurchase {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                } else {
-                    Text("Buy Single Design - $2.99")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                }
+                Text("Add 1 Credit (Demo)")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
             }
             .buttonStyle(.bordered)
-            .disabled(isLoadingSinglePurchase)
         }
         .padding()
         .background(Color(.systemGray6))
@@ -168,7 +154,9 @@ struct PaywallView: View {
     
     private var restoreButton: some View {
         Button("Restore Purchases") {
-            restorePurchases()
+            // TODO: Integrate RevenueCat restore
+            errorMessage = "RevenueCat not configured yet"
+            showError = true
         }
         .foregroundStyle(.blue)
         .padding(.top)
@@ -185,108 +173,6 @@ struct PaywallView: View {
             Text(text)
                 .font(.subheadline)
         }
-    }
-    
-    private func presentRevenueCatPaywall() {
-        isLoadingPaywall = true
-        
-        Task {
-            do {
-                let offerings = try await Purchases.shared.offerings()
-                
-                await MainActor.run {
-                    isLoadingPaywall = false
-                    
-                    if let _ = offerings.current {
-                        // Present RevenueCat paywall
-                        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                           let rootVC = windowScene.windows.first?.rootViewController {
-                            let paywallVC = PaywallViewController()
-                            paywallVC.delegate = PaywallDelegateHandler.shared
-                            PaywallDelegateHandler.shared.settings = settings
-                            rootVC.present(paywallVC, animated: true)
-                        }
-                    } else {
-                        errorMessage = "No subscription options available"
-                        showError = true
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    isLoadingPaywall = false
-                    errorMessage = error.localizedDescription
-                    showError = true
-                }
-            }
-        }
-    }
-    
-    private func purchaseSingleDesign() {
-        isLoadingSinglePurchase = true
-        
-        Task {
-            do {
-                let products = try await Purchases.shared.products([singleDesignProductId])
-                
-                guard let product = products.first else {
-                    await MainActor.run {
-                        isLoadingSinglePurchase = false
-                        errorMessage = "Product not found"
-                        showError = true
-                    }
-                    return
-                }
-                
-                let (_, customerInfo, _) = try await Purchases.shared.purchase(product: product)
-                
-                await MainActor.run {
-                    isLoadingSinglePurchase = false
-                    settings.addDesignCredit()
-                }
-            } catch {
-                await MainActor.run {
-                    isLoadingSinglePurchase = false
-                    if (error as NSError).code != 1 { // Not user cancelled
-                        errorMessage = error.localizedDescription
-                        showError = true
-                    }
-                }
-            }
-        }
-    }
-    
-    private func restorePurchases() {
-        Task {
-            do {
-                let customerInfo = try await Purchases.shared.restorePurchases()
-                
-                await MainActor.run {
-                    if customerInfo.entitlements["Gate2Go Pro"]?.isActive == true {
-                        settings.hasActiveSubscription = true
-                        settings.subscriptionTier = .premium
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    errorMessage = "Unable to restore purchases"
-                    showError = true
-                }
-            }
-        }
-    }
-}
-
-class PaywallDelegateHandler: NSObject, PaywallViewControllerDelegate {
-    static let shared = PaywallDelegateHandler()
-    var settings: Gate2GoSettings?
-    
-    func paywallViewController(_ controller: PaywallViewController,
-                                didFinishPurchasingWith customerInfo: CustomerInfo) {
-        if customerInfo.entitlements["Gate2Go Pro"]?.isActive == true {
-            settings?.hasActiveSubscription = true
-            settings?.subscriptionTier = .premium
-        }
-        controller.dismiss(animated: true)
     }
 }
 

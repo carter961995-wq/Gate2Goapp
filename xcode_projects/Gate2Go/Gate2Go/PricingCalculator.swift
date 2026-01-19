@@ -14,7 +14,7 @@ struct PricingCalculator {
         case .wood: basePerSqFt = 45
         case .steel: basePerSqFt = 65
         case .chainLink: basePerSqFt = 35
-        case .aluminumBasic: basePerSqFt = 55
+        case .aluminum: basePerSqFt = 55
         }
         
         let styleMultiplier: Double
