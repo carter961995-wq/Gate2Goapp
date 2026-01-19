@@ -347,9 +347,7 @@ private struct OptionsPriceTabView: View {
     var body: some View {
         Form {
             Section("Add-ons") {
-                Text("Add-ons coming soon: keypad, latch, drop rod, and openers.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                AddOnPickerView(addons: $draft.addons)
             }
 
             Section("Pricing") {
@@ -394,10 +392,6 @@ private struct OptionsPriceTabView: View {
                 Text(MoneyFormatting.dollarsString(cents: draft.totalPriceCents))
                     .font(.title3.bold())
                     .monospacedDigit()
-            }
-
-            Section {
-                Button("Export Proposal (coming soon)") {}
             }
         }
     }
