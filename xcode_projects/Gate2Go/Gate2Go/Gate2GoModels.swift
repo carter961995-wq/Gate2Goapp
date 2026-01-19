@@ -1,14 +1,12 @@
-navil.//
+//
 //  Gate2GoModels.swift
 //  Gate2Go
-//
-//  Created by Logan Carter on 1/14/26.
 //
 
 import Foundation
 import SwiftData
 
-enum GateStyle: Strim kk, CaseIterable, Codable, Hashable, Identifiable {
+enum GateStyle: String, CaseIterable, Codable, Hashable, Identifiable {
     case cantileverSlide = "cantilever_slide"
     case singleSwing = "single_swing"
     case doubleSwing = "double_swing"
@@ -45,7 +43,7 @@ enum Material: String, CaseIterable, Codable, Hashable, Identifiable {
     case wood = "wood"
     case steel = "steel"
     case chainLink = "chain_link"
-    case aluminumBasic = "aluminum_basic"
+    case aluminum = "aluminum"
 
     var id: String { rawValue }
     
@@ -54,7 +52,7 @@ enum Material: String, CaseIterable, Codable, Hashable, Identifiable {
         case .wood: return "Wood"
         case .steel: return "Steel"
         case .chainLink: return "Chain Link"
-        case .aluminumBasic: return "Aluminum"
+        case .aluminum: return "Aluminum"
         }
     }
     
@@ -63,16 +61,9 @@ enum Material: String, CaseIterable, Codable, Hashable, Identifiable {
         case .wood: return "leaf"
         case .steel: return "hammer"
         case .chainLink: return "link"
-        case .aluminumBasic: return "square.3.layers.3d"
+        case .aluminum: return "square.3.layers.3d"
         }
     }
-}
-
-enum SubscriptionTier: String, Codable, Hashable, Identifiable {
-    case essential
-    case premium
-
-    var id: String { rawValue }
 }
 
 struct Money: Codable, Hashable {
@@ -80,16 +71,25 @@ struct Money: Codable, Hashable {
     var currency: String = "USD"
 }
 
-enum AddonType: String, Codable, Hashable, Identifiable {
+enum AddonType: String, CaseIterable, Codable, Hashable, Identifiable {
     case keypad
     case dropRod = "drop_rod"
     case latch
     case opener
 
     var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .keypad: return "Keypad"
+        case .dropRod: return "Drop Rod"
+        case .latch: return "Latch"
+        case .opener: return "Gate Opener"
+        }
+    }
 }
 
-enum OpenerBrand: String, Codable, Hashable, Identifiable {
+enum OpenerBrand: String, CaseIterable, Codable, Hashable, Identifiable {
     case liftmaster
     case ghostControl = "ghost_control"
     case doorking
@@ -97,7 +97,7 @@ enum OpenerBrand: String, Codable, Hashable, Identifiable {
     var id: String { rawValue }
 }
 
-enum OpenerOperatorType: String, Codable, Hashable, Identifiable {
+enum OpenerOperatorType: String, CaseIterable, Codable, Hashable, Identifiable {
     case slide
     case swing
     case dualSwing = "dual_swing"
@@ -175,6 +175,40 @@ enum JSONValue: Codable, Hashable {
         case .object(let o): try container.encode(o)
         case .array(let a): try container.encode(a)
         case .null: try container.encodeNil()
+        }
+    }
+}
+
+// Designer customization enums
+enum GatePicketOrientation: String, CaseIterable, Codable, Identifiable {
+    case vertical, horizontal
+    var id: String { rawValue }
+    var displayName: String { rawValue.capitalized }
+}
+
+enum GateFinialStyle: String, CaseIterable, Codable, Identifiable {
+    case none, spear, ball, fleurDeLis, trident
+    var id: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .none: return "None"
+        case .spear: return "Spear"
+        case .ball: return "Ball"
+        case .fleurDeLis: return "Fleur-de-lis"
+        case .trident: return "Trident"
+        }
+    }
+}
+
+enum GateArchStyle: String, CaseIterable, Codable, Identifiable {
+    case flat, convex, concave, doubleArch
+    var id: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .flat: return "Flat"
+        case .convex: return "Arched Up"
+        case .concave: return "Arched Down"
+        case .doubleArch: return "Double Arch"
         }
     }
 }
@@ -290,3 +324,7 @@ extension GateDesignModel {
         set { addonsData = (try? JSONEncoder().encode(newValue)) ?? Data() }
     }
 }
+
+// Type aliases for compatibility
+typealias Project = ProjectModel
+typealias GateDesign = GateDesignModel

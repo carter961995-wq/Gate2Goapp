@@ -2,8 +2,6 @@
 //  ProjectWorkspaceView.swift
 //  Gate2Go
 //
-//  Created by Logan Carter on 1/14/26.
-//
 
 import SwiftUI
 import SwiftData
@@ -123,6 +121,10 @@ struct GateDesignDraft: Hashable {
     var widthFeet: Double = 12
     var heightFeet: Double = 6
 
+    var picketOrientation: GatePicketOrientation = .vertical
+    var finialStyle: GateFinialStyle = .none
+    var archStyle: GateArchStyle = .flat
+
     var params: [String: JSONValue] = [:]
     var addons: [AddonLineItem] = []
 
@@ -182,7 +184,15 @@ private struct DesignTabView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                LivePreviewCard(photoPath: project.sitePhotoPath, style: draft.gateStyle, material: draft.material)
+                LivePreviewCard(
+                    widthFeet: draft.widthFeet,
+                    heightFeet: draft.heightFeet,
+                    style: draft.gateStyle,
+                    material: draft.material,
+                    picketOrientation: draft.picketOrientation,
+                    finialStyle: draft.finialStyle,
+                    archStyle: draft.archStyle
+                )
 
                 Group {
                     Text("Gate Style")
@@ -190,7 +200,7 @@ private struct DesignTabView: View {
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(GateStyle.allCases) { style in
                             let locked = style.isPremium && settings.isPremiumLocked(.premium)
-                            GateStyleCard(
+                            StyleCard(
                                 style: style,
                                 isSelected: draft.gateStyle == style,
                                 isLocked: locked
@@ -236,6 +246,51 @@ private struct DesignTabView: View {
                             Stepper(value: $draft.heightFeet, in: 3...12, step: 1) {
                                 Text("\(Int(draft.heightFeet))")
                                     .monospacedDigit()
+                            }
+                        }
+                    }
+                }
+                .padding(14)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                Group {
+                    Text("Customization")
+                        .font(.headline)
+                    
+                    VStack(spacing: 12) {
+                        HStack {
+                            Text("Pickets")
+                            Spacer()
+                            Picker("Pickets", selection: $draft.picketOrientation) {
+                                ForEach(GatePicketOrientation.allCases) { orientation in
+                                    Text(orientation.displayName).tag(orientation)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .frame(width: 180)
+                        }
+                        
+                        HStack {
+                            Text("Top Style")
+                            Spacer()
+                            Picker("Arch", selection: $draft.archStyle) {
+                                ForEach(GateArchStyle.allCases) { style in
+                                    Text(style.displayName).tag(style)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        }
+                        
+                        if draft.material == .steel {
+                            HStack {
+                                Text("Finials")
+                                Spacer()
+                                Picker("Finials", selection: $draft.finialStyle) {
+                                    ForEach(GateFinialStyle.allCases) { style in
+                                        Text(style.displayName).tag(style)
+                                    }
+                                }
+                                .pickerStyle(.menu)
                             }
                         }
                     }
@@ -349,59 +404,43 @@ private struct OptionsPriceTabView: View {
 }
 
 private struct LivePreviewCard: View {
-    let photoPath: String?
+    let widthFeet: Double
+    let heightFeet: Double
     let style: GateStyle
     let material: Material
+    var picketOrientation: GatePicketOrientation = .vertical
+    var finialStyle: GateFinialStyle = .none
+    var archStyle: GateArchStyle = .flat
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Live Preview")
                 .font(.headline)
-            ZStack(alignment: .bottomLeading) {
-                if let path = photoPath, let ui = FileStore.readUIImage(path: path) {
-                    Image(uiImage: ui)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(height: 220)
-                        .clipped()
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(Color.accentColor.opacity(0.9), lineWidth: 2)
-                                .padding(16)
-                                .blendMode(.overlay)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                } else {
-                    Image(style.imageName)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(height: 220)
-                        .clipped()
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(Color.accentColor.opacity(0.9), lineWidth: 2)
-                                .padding(16)
-                                .blendMode(.overlay)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                }
-
-                HStack(spacing: 8) {
-                    Text(style.displayName)
-                    Text("•")
-                    Text(material.displayName)
-                }
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(.thinMaterial, in: Capsule())
-                .padding(12)
+            
+            GateDesignerView(
+                widthFeet: widthFeet,
+                heightFeet: heightFeet,
+                material: material,
+                gateStyle: style,
+                picketOrientation: picketOrientation,
+                finialStyle: finialStyle,
+                archStyle: archStyle
+            )
+            
+            HStack(spacing: 8) {
+                Text(style.displayName)
+                Text("•")
+                Text(material.displayName)
+                Text("•")
+                Text("\(Int(widthFeet))' × \(Int(heightFeet))'")
             }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
         }
     }
 }
 
-struct GateStyleCard: View {
+private struct StyleCard: View {
     let style: GateStyle
     let isSelected: Bool
     let isLocked: Bool
