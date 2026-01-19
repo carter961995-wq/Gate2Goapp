@@ -7,6 +7,12 @@
 
 import Foundation
 import SwiftUI
+import Combine
+
+enum SubscriptionTier: String, CaseIterable {
+    case essential
+    case premium
+}
 
 class Gate2GoSettings: ObservableObject {
     @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = false

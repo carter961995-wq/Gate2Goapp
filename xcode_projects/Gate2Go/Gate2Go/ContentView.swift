@@ -15,10 +15,6 @@ struct ContentView: View {
         Group {
             if !settings.hasCompletedOnboarding {
                 OnboardingView()
-            } else if !settings.hasAccessToDesign() {
-                NavigationStack {
-                    PaywallView()
-                }
             } else {
                 MainTabView()
             }
