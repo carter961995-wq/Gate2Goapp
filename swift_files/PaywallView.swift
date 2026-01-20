@@ -87,7 +87,7 @@ struct PaywallView: View {
                     ProgressView()
                         .tint(.white)
                 } else {
-                    Text("Subscribe to Pro")
+                    Text("View Pro Plans")
                 }
             }
             .frame(maxWidth: .infinity)
@@ -191,25 +191,30 @@ struct PaywallView: View {
     
     private func subscribeToPro() {
         isLoading = true
+        
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             settings.subscriptionTier = .premium
-            settings.hasActiveSubscription = true
             isLoading = false
+            dismiss()
         }
     }
     
     private func buySingleDesign() {
         isBuyingSingle = true
+        
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             settings.singleDesignCredits += 1
             isBuyingSingle = false
+            dismiss()
         }
     }
     
     private func restorePurchases() {
         isRestoring = true
+        
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             isRestoring = false
+            dismiss()
         }
     }
 }
