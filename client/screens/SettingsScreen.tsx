@@ -197,6 +197,14 @@ export default function SettingsScreen() {
                 </ThemedText>
               </View>
             ) : null}
+            {settings.designCredits > 0 ? (
+              <View style={styles.row}>
+                <ThemedText>Design Credits</ThemedText>
+                <ThemedText style={{ color: theme.accent, fontWeight: "600" }}>
+                  {settings.designCredits}
+                </ThemedText>
+              </View>
+            ) : null}
           </View>
           {subscriptionStatus.isActive ? (
             <Pressable

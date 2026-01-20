@@ -32,7 +32,8 @@ function AppContent() {
     return <OnboardingScreen />;
   }
 
-  if (!settings.hasActiveSubscription) {
+  const hasAccess = settings.hasActiveSubscription || (settings.designCredits && settings.designCredits > 0);
+  if (!hasAccess) {
     return <PaywallScreen />;
   }
 

@@ -7,7 +7,6 @@ import {
 } from "@/types/gate2go";
 import * as storage from "@/lib/storage";
 import * as subscriptions from "@/lib/subscriptions";
-import { CustomerInfo, PurchasesPackage, PurchasesOffering } from "react-native-purchases";
 
 interface AppContextType {
   settings: AppSettings;
@@ -24,9 +23,9 @@ interface AppContextType {
   getProjectDesigns: (projectId: string) => GateDesign[];
   isPremiumLocked: (requiredTier: SubscriptionTier) => boolean;
   refreshData: () => Promise<void>;
-  offerings: PurchasesOffering | null;
-  customerInfo: CustomerInfo | null;
-  purchasePackage: (pkg: PurchasesPackage) => Promise<boolean>;
+  offerings: any;
+  customerInfo: any;
+  purchasePackage: (pkg: any) => Promise<boolean>;
   restorePurchases: () => Promise<boolean>;
   subscriptionStatus: subscriptions.SubscriptionStatus;
   refreshSubscriptionStatus: () => Promise<void>;
@@ -53,8 +52,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [designs, setDesigns] = useState<GateDesign[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [offerings, setOfferings] = useState<PurchasesOffering | null>(null);
-  const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
+  const [offerings, setOfferings] = useState<any>(null);
+  const [customerInfo, setCustomerInfo] = useState<any>(null);
 
   const subscriptionStatus = subscriptions.getSubscriptionStatus(customerInfo);
 
@@ -103,7 +102,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     initSubscriptions();
   }, [refreshData, initSubscriptions]);
 
-  const purchasePackage = useCallback(async (pkg: PurchasesPackage): Promise<boolean> => {
+  const purchasePackage = useCallback(async (pkg: any): Promise<boolean> => {
     try {
       const info = await subscriptions.purchasePackage(pkg);
       if (info) {

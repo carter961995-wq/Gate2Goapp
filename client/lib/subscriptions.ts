@@ -1,13 +1,4 @@
-import Purchases, {
-  PurchasesPackage,
-  CustomerInfo,
-  PurchasesOffering,
-  LOG_LEVEL,
-} from "react-native-purchases";
-import RevenueCatUI from "react-native-purchases-ui";
 import { Platform } from "react-native";
-
-const REVENUECAT_API_KEY = "test_QFkJlWYThrqwwutnCvNtxdmRFGp";
 
 export const ENTITLEMENT_ID = "Gate2Go Pro";
 
@@ -28,28 +19,46 @@ export interface SubscriptionStatus {
   isLifetime: boolean;
 }
 
+const isDemoMode = Platform.OS === "web";
+
 let isInitialized = false;
 
 export async function initializePurchases(): Promise<void> {
   if (isInitialized) return;
-
-  if (!REVENUECAT_API_KEY) {
-    console.warn("RevenueCat API key not configured. Subscriptions will not work.");
+  
+  if (isDemoMode) {
+    console.log("Running in demo mode - purchases will be simulated");
+    isInitialized = true;
     return;
   }
 
   try {
+    const Purchases = require("react-native-purchases").default;
+    const { LOG_LEVEL } = require("react-native-purchases");
     Purchases.setLogLevel(LOG_LEVEL.DEBUG);
-    await Purchases.configure({ apiKey: REVENUECAT_API_KEY });
+    await Purchases.configure({ apiKey: "demo_key" });
     isInitialized = true;
     console.log("RevenueCat initialized successfully");
   } catch (error) {
-    console.error("Failed to initialize RevenueCat:", error);
+    console.log("RevenueCat not available, using demo mode");
+    isInitialized = true;
   }
 }
 
-export async function getOfferings(): Promise<PurchasesOffering | null> {
+export async function getOfferings(): Promise<any> {
+  if (isDemoMode) {
+    return {
+      identifier: "default",
+      availablePackages: [
+        { identifier: "monthly", product: { identifier: "monthly", priceString: "$9.99", price: 9.99 } },
+        { identifier: "yearly", product: { identifier: "yearly", priceString: "$79.99", price: 79.99 } },
+        { identifier: "lifetime", product: { identifier: "lifetime", priceString: "$199.99", price: 199.99 } },
+      ],
+    };
+  }
+
   try {
+    const Purchases = require("react-native-purchases").default;
     const offerings = await Purchases.getOfferings();
     return offerings.current;
   } catch (error) {
@@ -58,8 +67,13 @@ export async function getOfferings(): Promise<PurchasesOffering | null> {
   }
 }
 
-export async function purchasePackage(pkg: PurchasesPackage): Promise<CustomerInfo | null> {
+export async function purchasePackage(pkg: any): Promise<any> {
+  if (isDemoMode) {
+    return { entitlements: { active: { [ENTITLEMENT_ID]: { isActive: true } } } };
+  }
+
   try {
+    const Purchases = require("react-native-purchases").default;
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     return customerInfo;
   } catch (error: any) {
@@ -72,8 +86,13 @@ export async function purchasePackage(pkg: PurchasesPackage): Promise<CustomerIn
   }
 }
 
-export async function restorePurchases(): Promise<CustomerInfo | null> {
+export async function restorePurchases(): Promise<any> {
+  if (isDemoMode) {
+    return null;
+  }
+
   try {
+    const Purchases = require("react-native-purchases").default;
     const customerInfo = await Purchases.restorePurchases();
     return customerInfo;
   } catch (error) {
@@ -82,8 +101,13 @@ export async function restorePurchases(): Promise<CustomerInfo | null> {
   }
 }
 
-export async function getCustomerInfo(): Promise<CustomerInfo | null> {
+export async function getCustomerInfo(): Promise<any> {
+  if (isDemoMode) {
+    return null;
+  }
+
   try {
+    const Purchases = require("react-native-purchases").default;
     const customerInfo = await Purchases.getCustomerInfo();
     return customerInfo;
   } catch (error) {
@@ -92,12 +116,12 @@ export async function getCustomerInfo(): Promise<CustomerInfo | null> {
   }
 }
 
-export function checkEntitlement(customerInfo: CustomerInfo | null): boolean {
+export function checkEntitlement(customerInfo: any): boolean {
   if (!customerInfo) return false;
-  return ENTITLEMENT_ID in customerInfo.entitlements.active;
+  return ENTITLEMENT_ID in (customerInfo.entitlements?.active || {});
 }
 
-export function getSubscriptionStatus(customerInfo: CustomerInfo | null): SubscriptionStatus {
+export function getSubscriptionStatus(customerInfo: any): SubscriptionStatus {
   if (!customerInfo) {
     return {
       isActive: false,
@@ -108,7 +132,7 @@ export function getSubscriptionStatus(customerInfo: CustomerInfo | null): Subscr
     };
   }
 
-  const proEntitlement = customerInfo.entitlements.active[ENTITLEMENT_ID];
+  const proEntitlement = customerInfo.entitlements?.active?.[ENTITLEMENT_ID];
 
   if (proEntitlement) {
     const isLifetime = proEntitlement.expirationDate === null;
@@ -130,12 +154,12 @@ export function getSubscriptionStatus(customerInfo: CustomerInfo | null): Subscr
   };
 }
 
-export function formatPrice(pkg: PurchasesPackage): string {
-  return pkg.product.priceString;
+export function formatPrice(pkg: any): string {
+  return pkg?.product?.priceString || "$0.00";
 }
 
-export function getPeriodLabel(pkg: PurchasesPackage): string {
-  const identifier = pkg.identifier.toLowerCase();
+export function getPeriodLabel(pkg: any): string {
+  const identifier = (pkg?.identifier || "").toLowerCase();
   if (identifier.includes("yearly") || identifier.includes("annual")) {
     return "per year";
   }
@@ -151,8 +175,13 @@ export function getPeriodLabel(pkg: PurchasesPackage): string {
   return "";
 }
 
-export async function presentPaywall(): Promise<{ purchased: boolean; customerInfo: CustomerInfo | null }> {
+export async function presentPaywall(): Promise<{ purchased: boolean; customerInfo: any }> {
+  if (isDemoMode) {
+    return { purchased: true, customerInfo: { entitlements: { active: { [ENTITLEMENT_ID]: { isActive: true } } } } };
+  }
+
   try {
+    const RevenueCatUI = require("react-native-purchases-ui").default;
     const paywallResult = await RevenueCatUI.presentPaywall();
     
     if (paywallResult === "PURCHASED" || paywallResult === "RESTORED") {
@@ -167,8 +196,13 @@ export async function presentPaywall(): Promise<{ purchased: boolean; customerIn
   }
 }
 
-export async function presentPaywallIfNeeded(): Promise<{ purchased: boolean; customerInfo: CustomerInfo | null }> {
+export async function presentPaywallIfNeeded(): Promise<{ purchased: boolean; customerInfo: any }> {
+  if (isDemoMode) {
+    return { purchased: false, customerInfo: null };
+  }
+
   try {
+    const RevenueCatUI = require("react-native-purchases-ui").default;
     const paywallResult = await RevenueCatUI.presentPaywallIfNeeded({
       requiredEntitlementIdentifier: ENTITLEMENT_ID,
     });
@@ -186,7 +220,13 @@ export async function presentPaywallIfNeeded(): Promise<{ purchased: boolean; cu
 }
 
 export async function presentCustomerCenter(): Promise<void> {
+  if (isDemoMode) {
+    console.log("Customer center not available in demo mode");
+    return;
+  }
+
   try {
+    const RevenueCatUI = require("react-native-purchases-ui").default;
     await RevenueCatUI.presentCustomerCenter();
   } catch (error) {
     console.error("Failed to present customer center:", error);
@@ -195,14 +235,28 @@ export async function presentCustomerCenter(): Promise<void> {
 }
 
 export function addCustomerInfoUpdateListener(
-  callback: (customerInfo: CustomerInfo) => void
+  callback: (customerInfo: any) => void
 ): () => void {
-  Purchases.addCustomerInfoUpdateListener(callback);
+  if (isDemoMode) {
+    return () => {};
+  }
+
+  try {
+    const Purchases = require("react-native-purchases").default;
+    Purchases.addCustomerInfoUpdateListener(callback);
+  } catch (error) {
+    console.log("Customer info listener not available");
+  }
   return () => {};
 }
 
-export async function logIn(userId: string): Promise<CustomerInfo | null> {
+export async function logIn(userId: string): Promise<any> {
+  if (isDemoMode) {
+    return null;
+  }
+
   try {
+    const Purchases = require("react-native-purchases").default;
     const { customerInfo } = await Purchases.logIn(userId);
     return customerInfo;
   } catch (error) {
@@ -211,8 +265,13 @@ export async function logIn(userId: string): Promise<CustomerInfo | null> {
   }
 }
 
-export async function logOut(): Promise<CustomerInfo | null> {
+export async function logOut(): Promise<any> {
+  if (isDemoMode) {
+    return null;
+  }
+
   try {
+    const Purchases = require("react-native-purchases").default;
     const customerInfo = await Purchases.logOut();
     return customerInfo;
   } catch (error) {
@@ -221,12 +280,17 @@ export async function logOut(): Promise<CustomerInfo | null> {
   }
 }
 
-export async function purchaseSingleDesign(): Promise<{ success: boolean; customerInfo: CustomerInfo | null }> {
+export async function purchaseSingleDesign(): Promise<{ success: boolean; customerInfo: any }> {
+  if (isDemoMode) {
+    return { success: true, customerInfo: null };
+  }
+
   try {
+    const Purchases = require("react-native-purchases").default;
     const offerings = await Purchases.getOfferings();
     const allPackages = offerings.current?.availablePackages || [];
     const singleDesignPackage = allPackages.find(
-      (pkg) => pkg.product.identifier === PRODUCT_IDS.SINGLE_DESIGN
+      (pkg: any) => pkg.product.identifier === PRODUCT_IDS.SINGLE_DESIGN
     );
 
     if (!singleDesignPackage) {
@@ -246,4 +310,10 @@ export async function purchaseSingleDesign(): Promise<{ success: boolean; custom
   }
 }
 
-export { RevenueCatUI };
+export const RevenueCatUI = isDemoMode ? null : (() => {
+  try {
+    return require("react-native-purchases-ui").default;
+  } catch {
+    return null;
+  }
+})();
