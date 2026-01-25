@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct ProjectWorkspaceView: View {
     @Environment(\.modelContext) private var modelContext
@@ -18,7 +19,6 @@ struct ProjectWorkspaceView: View {
     @State private var draft = GateDesignDraft()
     @State private var isGenerating: Bool = false
     @State private var lastSavedDesignId: String?
-    @State private var showMissingPhotoAlert: Bool = false
 
     init(projectId: String) {
         self.projectId = projectId
@@ -55,11 +55,6 @@ struct ProjectWorkspaceView: View {
                             Label("Gallery", systemImage: "square.grid.2x2")
                         }
                     }
-                }
-                .alert("Add a jobsite photo", isPresented: $showMissingPhotoAlert) {
-                    Button("OK") { }
-                } message: {
-                    Text("Photoreal renders need a jobsite photo. Add one to the project to generate a render.")
                 }
                 .onAppear {
                     if draft.isFresh {
@@ -108,20 +103,25 @@ struct ProjectWorkspaceView: View {
 
     private func generatePhotoreal(project: ProjectModel) {
         guard !isGenerating else { return }
-        guard let sitePhotoPath = project.sitePhotoPath else {
-            showMissingPhotoAlert = true
-            return
-        }
         isGenerating = true
 
         Task {
             defer { Task { @MainActor in isGenerating = false } }
             try? await Task.sleep(nanoseconds: 1_000_000_000)
+            let generatedPath = project.sitePhotoPath
+                ?? generateStylePlaceholder()
+                ?? draft.generatedImagePath
             await MainActor.run {
-                draft.generatedImagePath = sitePhotoPath
-                draft.thumbnailPath = sitePhotoPath
+                draft.generatedImagePath = generatedPath
+                draft.thumbnailPath = generatedPath
             }
         }
+    }
+
+    private func generateStylePlaceholder() -> String? {
+        guard let image = UIImage(named: draft.gateStyle.imageName) else { return nil }
+        let fileName = "render-\(UUID().uuidString).jpg"
+        return try? FileStore.writeJPEG(image, fileName: fileName, subdirectory: "projects/renders")
     }
 }
 

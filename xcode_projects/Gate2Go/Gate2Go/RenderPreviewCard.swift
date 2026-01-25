@@ -73,7 +73,7 @@ struct RenderPreviewCard: View {
             return "No jobsite photo available."
         }
         if originalPath == nil {
-            return "Add a jobsite photo to enable photoreal renders."
+            return "No jobsite photo added. Photoreal generate will use the style preview."
         }
         return "Tap Photoreal Generate to create a render."
     }
