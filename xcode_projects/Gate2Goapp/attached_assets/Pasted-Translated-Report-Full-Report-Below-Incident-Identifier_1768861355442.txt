@@ -1,0 +1,209 @@
+Translated Report (Full Report Below)
+-------------------------------------
+
+Incident Identifier: 68C3CC89-D108-482A-A85B-B75F480495E9
+CrashReporter Key:   AC4338E5-3476-B67A-ED3B-AB6078440D4F
+Hardware Model:      Mac14,2
+Process:             Gate2Go [17228]
+Path:                /Users/USER/Library/Developer/CoreSimulator/Devices/3ACAC63E-BB05-41C3-A3AE-5868B5ED46FF/data/Containers/Bundle/Application/41152B89-4420-4601-B505-4F977D110705/Gate2Go.app/Gate2Go
+Identifier:          auto.Gate2Go
+Version:             1.0 (1)
+Code Type:           ARM-64 (Native)
+Role:                Foreground
+Parent Process:      launchd_sim [17031]
+Coalition:           com.apple.CoreSimulator.SimDevice.3ACAC63E-BB05-41C3-A3AE-5868B5ED46FF [45613]
+Responsible Process: SimulatorTrampoline [16258]
+
+Date/Time:           2026-01-19 16:21:10.1987 -0600
+Launch Time:         2026-01-19 16:21:10.0927 -0600
+OS Version:          macOS 15.6.1 (24G90)
+Release Type:        User
+Report Version:      104
+
+Exception Type:  EXC_CRASH (SIGABRT)
+Exception Codes: 0x0000000000000000, 0x0000000000000000
+Termination Reason: DYLD 1 Library missing
+Library not loaded: @rpath/RevenueCat.framework/RevenueCat
+Referenced from: <6521AFBC-2FD0-3BA5-8CB8-D78C14E98ADC> /Users/USER/Library/Developer/CoreSimulator/Devices/3ACAC63E-BB05-41C3-A3AE-5868B5ED46FF/data/Containers/Bundle/Application/41152B89-4420-4601-B505-4F977D110705/Gate2Go.app/Gate2Go.debug.dylib
+Reason: tried: '/Library/Developer/CoreSimulator/Volumes/iOS_23C54/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.2.simruntime/Contents/Resources/RuntimeRoot/usr/lib/swift/RevenueCat.framework/RevenueCat' (no such file), '/usr/lib/swift/RevenueCat.framework/RevenueCat' (no such file, not in dyld cache), '/Users/logancarter/Library/Developer/CoreSimulator/Devices/3ACAC63E-BB05-41C3-A3AE-5868B5ED46FF/data/Containers/Bundle/Application/41152B89-4420-4601-B505-4F977D110705/Gate2Go.app/Frameworks/RevenueCat.framework/RevenueCat' (no such file), '/Users/logancarter/Library/Developer/CoreSimulator/Devices/3ACAC63E-BB05-41C3-A3AE-5868B5ED46FF/data/Containers/Bundle/Application/41152B89-4420-46
+(terminated at launch; ignore backtrace)
+
+Triggered by Thread:  0
+
+Thread 0 Crashed:
+0   dyld                          	       0x104f3a660 __abort_with_payload + 8
+1   dyld                          	       0x104f4c688 abort_with_payload_wrapper_internal + 104
+2   dyld                          	       0x104f4c6bc abort_with_payload + 16
+3   ???                           	       0x105035bd8 ???
+4   ???                           	       0x104ff8bec ???
+5   ???                           	       0x104ff5f50 ???
+6   ???                           	       0x104ff5344 ???
+7   dyld                          	       0x104ecc898 dyld4::prepareSim(dyld4::RuntimeState&, char const*) + 1308
+8   dyld                          	       0x104ecb344 dyld4::prepare(dyld4::APIs&, mach_o::Header const*) + 344
+9   dyld                          	       0x104ecb1d8 dyld4::start(dyld4::KernelArgs*, void*, void*)::$_0::operator()() const + 236
+10  dyld                          	       0x104ecab4c start + 6000
+
+
+Thread 0 crashed with ARM Thread State (64-bit):
+    x0: 0x0000000000000006   x1: 0x0000000000000001   x2: 0x000000016b02c280   x3: 0x0000000000000103
+    x4: 0x000000016b02be80   x5: 0x0000000000000000   x6: 0x0000000000000000   x7: 0x0000000000000000
+    x8: 0x0000000000000020   x9: 0x0000000000000012  x10: 0x0000000000000000  x11: 0x207972617262694c
+   x12: 0x0000000000000034  x13: 0x0000000000001a60  x14: 0x0000000000000001  x15: 0x0000000000000000
+   x16: 0x0000000000000209  x17: 0xcadd00016b02b7e0  x18: 0x0000000000000000  x19: 0x0000000000000000
+   x20: 0x000000016b02be80  x21: 0x0000000000000103  x22: 0x000000016b02c280  x23: 0x0000000000000001
+   x24: 0x0000000000000006  x25: 0x0000000000000000  x26: 0x00000000000bc000  x27: 0x0000000000000000
+   x28: 0x0000000000000000   fp: 0x000000016b02be40   lr: 0x0000000104f4c688
+    sp: 0x000000016b02be00   pc: 0x0000000104f3a660 cpsr: 0x00001000
+   far: 0x0000000000000000  esr: 0x56000080  Address size fault
+
+Binary Images:
+       0x104ec4000 -        0x104f5ffff dyld (*) <3247e185-ced2-36ff-9e29-47a77c23e004> /usr/lib/dyld
+       0x104dd0000 -        0x104dd3fff auto.Gate2Go (1.0) <140a6dc0-72e5-369f-84da-bf4975c5cb94> /Users/USER/Library/Developer/CoreSimulator/Devices/3ACAC63E-BB05-41C3-A3AE-5868B5ED46FF/data/Containers/Bundle/Application/41152B89-4420-4601-B505-4F977D110705/Gate2Go.app/Gate2Go
+       0x1053f8000 -        0x1054dffff Gate2Go.debug.dylib (*) <6521afbc-2fd0-3ba5-8cb8-d78c14e98adc> /Users/USER/Library/Developer/CoreSimulator/Devices/3ACAC63E-BB05-41C3-A3AE-5868B5ED46FF/data/Containers/Bundle/Application/41152B89-4420-4601-B505-4F977D110705/Gate2Go.app/Gate2Go.debug.dylib
+               0x0 - 0xffffffffffffffff ??? (*) <00000000-0000-0000-0000-000000000000> ???
+
+EOF
+
+-----------
+Full Report
+-----------
+
+{"app_name":"Gate2Go","timestamp":"2026-01-19 16:21:10.00 -0600","app_version":"1.0","slice_uuid":"140a6dc0-72e5-369f-84da-bf4975c5cb94","build_version":"1","platform":7,"bundleID":"auto.Gate2Go","share_with_app_devs":1,"is_first_party":0,"bug_type":"309","os_version":"macOS 15.6.1 (24G90)","roots_installed":0,"name":"Gate2Go","incident_id":"68C3CC89-D108-482A-A85B-B75F480495E9"}
+{
+  "uptime" : 360000,
+  "procRole" : "Foreground",
+  "version" : 2,
+  "userID" : 501,
+  "deployVersion" : 210,
+  "modelCode" : "Mac14,2",
+  "coalitionID" : 45613,
+  "osVersion" : {
+    "train" : "macOS 15.6.1",
+    "build" : "24G90",
+    "releaseType" : "User"
+  },
+  "captureTime" : "2026-01-19 16:21:10.1987 -0600",
+  "codeSigningMonitor" : 1,
+  "incident" : "68C3CC89-D108-482A-A85B-B75F480495E9",
+  "pid" : 17228,
+  "translated" : false,
+  "cpuType" : "ARM-64",
+  "roots_installed" : 0,
+  "bug_type" : "309",
+  "procLaunch" : "2026-01-19 16:21:10.0927 -0600",
+  "procStartAbsTime" : 8770395565095,
+  "procExitAbsTime" : 8770398077132,
+  "procName" : "Gate2Go",
+  "procPath" : "\/Users\/USER\/Library\/Developer\/CoreSimulator\/Devices\/3ACAC63E-BB05-41C3-A3AE-5868B5ED46FF\/data\/Containers\/Bundle\/Application\/41152B89-4420-4601-B505-4F977D110705\/Gate2Go.app\/Gate2Go",
+  "bundleInfo" : {"CFBundleShortVersionString":"1.0","CFBundleVersion":"1","CFBundleIdentifier":"auto.Gate2Go"},
+  "storeInfo" : {"deviceIdentifierForVendor":"3FB85B50-B6D8-5332-9F18-EAD791E8D08D","thirdParty":true},
+  "parentProc" : "launchd_sim",
+  "parentPid" : 17031,
+  "coalitionName" : "com.apple.CoreSimulator.SimDevice.3ACAC63E-BB05-41C3-A3AE-5868B5ED46FF",
+  "crashReporterKey" : "AC4338E5-3476-B67A-ED3B-AB6078440D4F",
+  "appleIntelligenceStatus" : {"state":"available"},
+  "responsiblePid" : 16258,
+  "responsibleProc" : "SimulatorTrampoline",
+  "codeSigningID" : "auto.Gate2Go",
+  "codeSigningTeamID" : "",
+  "codeSigningFlags" : 570425857,
+  "codeSigningValidationCategory" : 10,
+  "codeSigningTrustLevel" : 4294967295,
+  "codeSigningAuxiliaryInfo" : 0,
+  "instructionByteStream" : {"beforePC":"eAAAALwAAAAoAQAAcAAAAAABAABoAAAAGAEAADgBAAAwQYDSARAA1A==","atPC":"AwEAVH8jA9X9e7+p\/QMAkb0x\/pe\/AwCR\/XvBqP8PX9bAA1\/WEC2A0g=="},
+  "bootSessionUUID" : "1626E637-0C76-416B-90E0-0BFF078DBA6E",
+  "wakeTime" : 14127,
+  "fatalDyldError" : 1,
+  "sleepWakeUUID" : "6046F41F-455E-4528-B4D9-1B32F8681162",
+  "sip" : "enabled",
+  "exception" : {"codes":"0x0000000000000000, 0x0000000000000000","rawCodes":[0,0],"type":"EXC_CRASH","signal":"SIGABRT"},
+  "termination" : {"code":1,"flags":518,"namespace":"DYLD","indicator":"Library missing","details":["(terminated at launch; ignore backtrace)"],"reasons":["Library not loaded: @rpath\/RevenueCat.framework\/RevenueCat","Referenced from: <6521AFBC-2FD0-3BA5-8CB8-D78C14E98ADC> \/Users\/USER\/Library\/Developer\/CoreSimulator\/Devices\/3ACAC63E-BB05-41C3-A3AE-5868B5ED46FF\/data\/Containers\/Bundle\/Application\/41152B89-4420-4601-B505-4F977D110705\/Gate2Go.app\/Gate2Go.debug.dylib","Reason: tried: '\/Library\/Developer\/CoreSimulator\/Volumes\/iOS_23C54\/Library\/Developer\/CoreSimulator\/Profiles\/Runtimes\/iOS 26.2.simruntime\/Contents\/Resources\/RuntimeRoot\/usr\/lib\/swift\/RevenueCat.framework\/RevenueCat' (no such file), '\/usr\/lib\/swift\/RevenueCat.framework\/RevenueCat' (no such file, not in dyld cache), '\/Users\/logancarter\/Library\/Developer\/CoreSimulator\/Devices\/3ACAC63E-BB05-41C3-A3AE-5868B5ED46FF\/data\/Containers\/Bundle\/Application\/41152B89-4420-4601-B505-4F977D110705\/Gate2Go.app\/Frameworks\/RevenueCat.framework\/RevenueCat' (no such file), '\/Users\/logancarter\/Library\/Developer\/CoreSimulator\/Devices\/3ACAC63E-BB05-41C3-A3AE-5868B5ED46FF\/data\/Containers\/Bundle\/Application\/41152B89-4420-46"]},
+  "extMods" : {"caller":{"thread_create":0,"thread_set_state":0,"task_for_pid":0},"system":{"thread_create":0,"thread_set_state":1908,"task_for_pid":115},"targeted":{"thread_create":0,"thread_set_state":0,"task_for_pid":0},"warnings":0},
+  "faultingThread" : 0,
+  "threads" : [{"triggered":true,"id":6400010,"threadState":{"x":[{"value":6},{"value":1},{"value":6090310272},{"value":259},{"value":6090309248},{"value":0},{"value":0},{"value":0},{"value":32},{"value":18},{"value":0},{"value":2340027244252129612},{"value":52},{"value":6752},{"value":1},{"value":0},{"value":521},{"value":14617839971604805600},{"value":0},{"value":0},{"value":6090309248},{"value":259},{"value":6090310272},{"value":1},{"value":6},{"value":0},{"value":770048},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":4378117768},"cpsr":{"value":4096},"fp":{"value":6090309184},"sp":{"value":6090309120},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":4378044000,"matchesCrashFrame":1},"far":{"value":0}},"frames":[{"imageOffset":484960,"symbol":"__abort_with_payload","symbolLocation":8,"imageIndex":0},{"imageOffset":558728,"symbol":"abort_with_payload_wrapper_internal","symbolLocation":104,"imageIndex":0},{"imageOffset":558780,"symbol":"abort_with_payload","symbolLocation":16,"imageIndex":0},{"imageOffset":4379073496,"imageIndex":3},{"imageOffset":4378823660,"imageIndex":3},{"imageOffset":4378812240,"imageIndex":3},{"imageOffset":4378809156,"imageIndex":3},{"imageOffset":34968,"symbol":"dyld4::prepareSim(dyld4::RuntimeState&, char const*)","symbolLocation":1308,"imageIndex":0},{"imageOffset":29508,"symbol":"dyld4::prepare(dyld4::APIs&, mach_o::Header const*)","symbolLocation":344,"imageIndex":0},{"imageOffset":29144,"symbol":"dyld4::start(dyld4::KernelArgs*, void*, void*)::$_0::operator()() const","symbolLocation":236,"imageIndex":0},{"imageOffset":27468,"symbol":"start","symbolLocation":6000,"imageIndex":0}]}],
+  "usedImages" : [
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4377559040,
+    "size" : 638976,
+    "uuid" : "3247e185-ced2-36ff-9e29-47a77c23e004",
+    "path" : "\/usr\/lib\/dyld",
+    "name" : "dyld"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4376559616,
+    "CFBundleShortVersionString" : "1.0",
+    "CFBundleIdentifier" : "auto.Gate2Go",
+    "size" : 16384,
+    "uuid" : "140a6dc0-72e5-369f-84da-bf4975c5cb94",
+    "path" : "\/Users\/USER\/Library\/Developer\/CoreSimulator\/Devices\/3ACAC63E-BB05-41C3-A3AE-5868B5ED46FF\/data\/Containers\/Bundle\/Application\/41152B89-4420-4601-B505-4F977D110705\/Gate2Go.app\/Gate2Go",
+    "name" : "Gate2Go",
+    "CFBundleVersion" : "1"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4383014912,
+    "size" : 950272,
+    "uuid" : "6521afbc-2fd0-3ba5-8cb8-d78c14e98adc",
+    "path" : "\/Users\/USER\/Library\/Developer\/CoreSimulator\/Devices\/3ACAC63E-BB05-41C3-A3AE-5868B5ED46FF\/data\/Containers\/Bundle\/Application\/41152B89-4420-4601-B505-4F977D110705\/Gate2Go.app\/Gate2Go.debug.dylib",
+    "name" : "Gate2Go.debug.dylib"
+  },
+  {
+    "size" : 0,
+    "source" : "A",
+    "base" : 0,
+    "uuid" : "00000000-0000-0000-0000-000000000000"
+  }
+],
+  "sharedCache" : {
+  "base" : 6442450944,
+  "size" : 4230135808,
+  "uuid" : "1076715a-7db1-3e84-9461-1e9280eed092"
+},
+  "vmSummary" : "ReadOnly portion of Libraries: Total=711.2M resident=0K(0%) swapped_out_or_unallocated=711.2M(100%)\nWritable regions: Total=8657K written=289K(3%) resident=289K(3%) swapped_out=0K(0%) unallocated=8368K(97%)\n\n                                VIRTUAL   REGION \nREGION TYPE                        SIZE    COUNT (non-coalesced) \n===========                     =======  ======= \nSTACK GUARD                       56.0M        1 \nStack                             8176K        1 \nVM_ALLOCATE                        128K        1 \n__DATA                             279K       33 \n__DATA_CONST                       291K       38 \n__DATA_DIRTY                        27K        7 \n__LINKEDIT                       706.2M        4 \n__LLVM_COV                          32K        1 \n__TEXT                            5200K       38 \n__TPRO_CONST                       148K        2 \ndyld private memory                2.2G        6 \nmapped file                        624K        6 \npage table in kernel               289K        1 \n===========                     =======  ======= \nTOTAL                              2.9G      139 \n",
+  "legacyInfo" : {
+  "threadTriggered" : {
+
+  }
+},
+  "logWritingSignature" : "856a15aaa6b847ab011defc06a5adc0e9ed847fa",
+  "trialInfo" : {
+  "rollouts" : [
+    {
+      "rolloutId" : "6410af69ed1e1e7ab93ed169",
+      "factorPackIds" : {
+
+      },
+      "deploymentId" : 240000011
+    },
+    {
+      "rolloutId" : "6246d6a916a70b047e454124",
+      "factorPackIds" : {
+
+      },
+      "deploymentId" : 240000010
+    }
+  ],
+  "experiments" : [
+
+  ]
+}
+}
+
+Model: Mac14,2, BootROM 11881.140.96, proc 8:4:4 processors, 16 GB, SMC 
+Graphics: Apple M2, Apple M2, Built-In
+Display: Color LCD, 2560 x 1664 Retina, Main, MirrorOff, Online
+Memory Module: LPDDR5, Micron
+AirPort: spairport_wireless_card_type_wifi (0x14E4, 0x4387), wl0: Mar 23 2025 19:56:28 version 20.130.17.0.8.7.197 FWID 01-764e34b7
+IO80211_driverkit-1485.7 "IO80211_driverkit-1485.7" Jul 15 2025 20:46:41
+AirPort: 
+Bluetooth: Version (null), 0 services, 0 devices, 0 incoming serial ports
+Network Service: Wi-Fi, AirPort, en0
+USB Device: USB31Bus
+USB Device: USB31Bus
+Thunderbolt Bus: MacBook Air, Apple Inc.
+Thunderbolt Bus: MacBook Air, Apple Inc.

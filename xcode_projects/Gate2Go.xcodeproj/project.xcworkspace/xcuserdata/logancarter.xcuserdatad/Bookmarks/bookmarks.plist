@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>top-level-items</key>
+	<array>
+		<dict>
+			<key>destination</key>
+			<dict>
+				<key>location-parameters</key>
+				<dict>
+					<key>Timestamp</key>
+					<string>791018223.690673</string>
+					<key>XcodeLocation</key>
+					<string>{"Selection":{"Editor":"Xcode3BuildSettingsEditor","Target":"Gate2Go","Xcode3BuildSettingsEditorLocations":[{"Collapsed Build Property Categories":["\u0001Deployment||INSTALL_PATH","\u0001Deployment||STRIP_INSTALLED_PRODUCT","\u0001Deployment||TARGETED_DEVICE_FAMILY","\u0001Deployment||IPHONEOS_DEPLOYMENT_TARGET","\u0001Info.plist Values||INFOPLIST_KEY_LSApplicationCategoryType","\u0001Info.plist Values||INFOPLIST_KEY_UIApplicationSceneManifest_Generation","\u0001Info.plist Values||INFOPLIST_KEY_CFBundleDisplayName","\u0001Info.plist Values||INFOPLIST_KEY_NSHumanReadableCopyright","\u0001Info.plist Values||INFOPLIST_KEY_UILaunchScreen_Generation","\u0001Info.plist Values||INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad","\u0001Info.plist Values||INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone","\u0001Info.plist Values||INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents","\u0001Linking - General||LD_RUNPATH_SEARCH_PATHS","\u0001Localization||STRING_CATALOG_GENERATE_SYMBOLS","\u0001Localization||SWIFT_EMIT_LOC_STRINGS","\u0001Packaging||GENERATE_INFOPLIST_FILE","\u0001Packaging||INFOPLIST_FILE","\u0001Packaging||PRODUCT_BUNDLE_IDENTIFIER","\u0001Packaging||PRODUCT_NAME","\u0001Signing||CODE_SIGN_STYLE","\u0001Signing||DEVELOPMENT_TEAM","\u0001Versioning||CURRENT_PROJECT_VERSION","\u0001Versioning||MARKETING_VERSION","Asset Catalog Compiler - Options||ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME","Asset Catalog Compiler - Options||ASSETCATALOG_COMPILER_APPICON_NAME","Swift Compiler - Concurrency||SWIFT_APPROACHABLE_CONCURRENCY","Swift Compiler - Concurrency||SWIFT_DEFAULT_ACTOR_ISOLATION","Swift Compiler - Language||SWIFT_VERSION","Swift Compiler - Upcoming Features||SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY","User-Defined||ENABLE_PREVIEWS","User-Defined||MTL_FAST_MATH"],"Selected Build Properties":[],"Xcode3BuildPropertyNameDisplayMode":1,"Xcode3BuildPropertyValueDisplayMode":0,"Xcode3BuildSettingsEditorDisplayMode":0,"Xcode3BuildSettingsEditorMode":1}]}}</string>
+				</dict>
+				<key>rebasable-url</key>
+				<dict>
+					<key>base</key>
+					<string>workspace</string>
+					<key>payload</key>
+					<dict>
+						<key>relative-path</key>
+						<string>Gate2Go.xcodeproj</string>
+					</dict>
+				</dict>
+				<key>type</key>
+				<string>Xcode3ProjectDocumentLocation</string>
+			</dict>
+			<key>title</key>
+			<string>Gate2Go Build Settings</string>
+			<key>type</key>
+			<string>bookmark</string>
+		</dict>
+	</array>
+</dict>
+</plist>
