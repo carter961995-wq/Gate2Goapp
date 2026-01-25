@@ -141,7 +141,7 @@ struct SettingsView: View {
                 TextField("Email Address", text: $settings.companyEmail)
                     .keyboardType(.emailAddress)
                     .textContentType(.emailAddress)
-                    .autocapitalization(.none)
+                    .textInputAutocapitalization(.never)
             }
         } header: {
             Text("Company Branding")

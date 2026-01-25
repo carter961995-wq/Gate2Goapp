@@ -27,4 +27,12 @@ struct FileStore {
         guard let data = try? Data(contentsOf: url) else { return nil }
         return UIImage(data: data)
     }
+
+    static func readUIImageAsync(path: String) async -> UIImage? {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                continuation.resume(returning: readUIImage(path: path))
+            }
+        }
+    }
 }

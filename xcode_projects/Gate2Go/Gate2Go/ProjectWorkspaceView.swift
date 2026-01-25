@@ -18,6 +18,7 @@ struct ProjectWorkspaceView: View {
     @State private var draft = GateDesignDraft()
     @State private var isGenerating: Bool = false
     @State private var lastSavedDesignId: String?
+    @State private var showMissingPhotoAlert: Bool = false
 
     init(projectId: String) {
         self.projectId = projectId
@@ -54,6 +55,11 @@ struct ProjectWorkspaceView: View {
                             Label("Gallery", systemImage: "square.grid.2x2")
                         }
                     }
+                }
+                .alert("Add a jobsite photo", isPresented: $showMissingPhotoAlert) {
+                    Button("OK") { }
+                } message: {
+                    Text("Photoreal renders need a jobsite photo. Add one to the project to generate a render.")
                 }
                 .onAppear {
                     if draft.isFresh {
@@ -102,14 +108,18 @@ struct ProjectWorkspaceView: View {
 
     private func generatePhotoreal(project: ProjectModel) {
         guard !isGenerating else { return }
+        guard let sitePhotoPath = project.sitePhotoPath else {
+            showMissingPhotoAlert = true
+            return
+        }
         isGenerating = true
 
         Task {
             defer { Task { @MainActor in isGenerating = false } }
             try? await Task.sleep(nanoseconds: 1_000_000_000)
             await MainActor.run {
-                draft.generatedImagePath = project.sitePhotoPath
-                draft.thumbnailPath = project.sitePhotoPath
+                draft.generatedImagePath = sitePhotoPath
+                draft.thumbnailPath = sitePhotoPath
             }
         }
     }
@@ -327,6 +337,12 @@ private struct DesignTabView: View {
                     }
                     .buttonStyle(.bordered)
                 }
+
+                RenderPreviewCard(
+                    title: "Photoreal Preview",
+                    generatedPath: draft.generatedImagePath,
+                    originalPath: project.sitePhotoPath
+                )
             }
             .padding()
         }

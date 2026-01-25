@@ -32,9 +32,10 @@ struct DesignGalleryView: View {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(designs) { design in
-                            NavigationLink(destination: DesignDetailView(design: design)) {
+                            NavigationLink(value: GalleryRoute.detail(designId: design.id, projectId: design.projectId)) {
                                 DesignCard(design: design)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding()
@@ -43,19 +44,42 @@ struct DesignGalleryView: View {
         }
         .navigationTitle("Design Gallery")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: GalleryRoute.self) { route in
+            switch route {
+            case .detail(let designId, let projectId):
+                DesignDetailView(designId: designId, projectId: projectId)
+            }
+        }
     }
 }
 
 struct DesignCard: View {
     let design: GateDesignModel
+    @State private var thumbnail: UIImage?
     
     var body: some View {
         VStack(spacing: 0) {
-            Image(design.gateStyle.imageName)
-                .resizable()
-                .scaledToFill()
-                .frame(height: 100)
-                .clipped()
+            ZStack(alignment: .topTrailing) {
+                if let thumbnail {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 100)
+                        .clipped()
+                } else {
+                    Image(design.gateStyle.imageName)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 100)
+                        .clipped()
+                }
+                
+                if design.selectedByClient {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundStyle(.green)
+                        .padding(8)
+                }
+            }
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(design.gateStyle.displayName)
@@ -73,7 +97,30 @@ struct DesignCard: View {
         }
         .background(Color(uiColor: .systemGray6))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .task(id: previewPath) {
+            await loadThumbnail()
+        }
     }
+
+    private var previewPath: String? {
+        design.thumbnailPath ?? design.generatedImagePath
+    }
+
+    private func loadThumbnail() async {
+        guard let previewPath else {
+            await MainActor.run { thumbnail = nil }
+            return
+        }
+        let image = await FileStore.readUIImageAsync(path: previewPath)
+        guard !Task.isCancelled else { return }
+        await MainActor.run {
+            thumbnail = image
+        }
+    }
+}
+
+private enum GalleryRoute: Hashable {
+    case detail(designId: String, projectId: String)
 }
 
 #Preview {
