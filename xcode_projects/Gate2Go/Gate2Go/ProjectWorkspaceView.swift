@@ -6,6 +6,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import Foundation
 
 struct ProjectWorkspaceView: View {
     @Environment(\.modelContext) private var modelContext
@@ -19,6 +20,8 @@ struct ProjectWorkspaceView: View {
     @State private var draft = GateDesignDraft()
     @State private var isGenerating: Bool = false
     @State private var lastSavedDesignId: String?
+    @State private var showGenerateError: Bool = false
+    @State private var generateErrorMessage: String?
 
     init(projectId: String) {
         self.projectId = projectId
@@ -55,6 +58,11 @@ struct ProjectWorkspaceView: View {
                             Label("Gallery", systemImage: "square.grid.2x2")
                         }
                     }
+                }
+                .alert("Photoreal Generate Failed", isPresented: $showGenerateError) {
+                    Button("OK") { }
+                } message: {
+                    Text(generateErrorMessage ?? "Please try again.")
                 }
                 .onAppear {
                     if draft.isFresh {
@@ -108,12 +116,98 @@ struct ProjectWorkspaceView: View {
         Task {
             defer { Task { @MainActor in isGenerating = false } }
             try? await Task.sleep(nanoseconds: 1_000_000_000)
-            let generatedPath = await generateRenderPath(project: project) ?? draft.generatedImagePath
-            await MainActor.run {
-                draft.generatedImagePath = generatedPath
-                draft.thumbnailPath = generatedPath
+            let prompt = await MainActor.run { buildPrompt(project: project) }
+            if let generatedPath = await generateAIImage(prompt: prompt) {
+                await MainActor.run {
+                    draft.generatedImagePath = generatedPath
+                    draft.thumbnailPath = generatedPath
+                }
+            } else if let fallbackPath = await generateRenderPath(project: project) {
+                await MainActor.run {
+                    draft.generatedImagePath = fallbackPath
+                    draft.thumbnailPath = fallbackPath
+                }
+            } else {
+                await MainActor.run {
+                    generateErrorMessage = "Unable to generate an image right now."
+                    showGenerateError = true
+                }
             }
         }
+    }
+
+    private func generateAIImage(prompt: String) async -> String? {
+        let baseURL = await ImageGenerationConfig.baseURL
+        let url = baseURL.appendingPathComponent("api/images/generate")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let authToken = await ImageGenerationConfig.authToken
+        if !authToken.isEmpty {
+            request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        let body = ImageGenerateRequest(prompt: prompt, size: "1024x1024")
+        guard let payload = try? JSONEncoder().encode(body) else { return nil }
+        request.httpBody = payload
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else { return nil }
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let message = String(data: data, encoding: .utf8)
+                await MainActor.run {
+                    generateErrorMessage = message?.isEmpty == false ? message : "Server error (\(httpResponse.statusCode))."
+                    showGenerateError = true
+                }
+                return nil
+            }
+
+            let decoded = try JSONDecoder().decode(ImageGenerateResponse.self, from: data)
+            guard decoded.success, let imageUrl = decoded.imageUrl else {
+                let message = decoded.error ?? decoded.message ?? "Image generation failed."
+                await MainActor.run {
+                    generateErrorMessage = message
+                    showGenerateError = true
+                }
+                return nil
+            }
+            guard let imageData = decodeDataURL(imageUrl), let image = UIImage(data: imageData) else { return nil }
+            let scaled = resizeImageIfNeeded(image, maxDimension: 1600)
+            let fileName = "render-\(UUID().uuidString).jpg"
+            return try? FileStore.writeJPEG(scaled, fileName: fileName, subdirectory: "projects/renders")
+        } catch {
+            await MainActor.run {
+                generateErrorMessage = error.localizedDescription
+                showGenerateError = true
+            }
+            return nil
+        }
+    }
+
+    private func decodeDataURL(_ value: String) -> Data? {
+        guard let comma = value.firstIndex(of: ",") else { return nil }
+        let base64 = String(value[value.index(after: comma)...])
+        return Data(base64Encoded: base64, options: .ignoreUnknownCharacters)
+    }
+
+    @MainActor
+    private func buildPrompt(project: ProjectModel) -> String {
+        var components: [String] = []
+        components.append("Photorealistic driveway gate render")
+        components.append("\(draft.gateStyle.displayName) gate")
+        components.append("material: \(draft.material.displayName)")
+        components.append("size: \(Int(draft.widthFeet)) ft wide by \(Int(draft.heightFeet)) ft tall")
+        components.append("pickets: \(draft.picketOrientation.displayName)")
+        components.append("top style: \(draft.archStyle.displayName)")
+        if draft.material == .steel {
+            components.append("finials: \(draft.finialStyle.displayName)")
+        }
+        if let name = project.name.isEmpty ? nil : project.name {
+            components.append("project: \(name)")
+        }
+        components.append("natural lighting, realistic shadows, no text")
+        return components.joined(separator: ", ")
     }
 
     private func generateRenderPath(project: ProjectModel) async -> String? {
@@ -254,6 +348,18 @@ struct GateDesignDraft: Hashable {
         )
         recomputeTotals()
     }
+}
+
+private struct ImageGenerateRequest: Encodable {
+    let prompt: String
+    let size: String
+}
+
+private struct ImageGenerateResponse: Decodable {
+    let success: Bool
+    let imageUrl: String?
+    let error: String?
+    let message: String?
 }
 
 private struct DesignTabView: View {
