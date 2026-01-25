@@ -108,9 +108,7 @@ struct ProjectWorkspaceView: View {
         Task {
             defer { Task { @MainActor in isGenerating = false } }
             try? await Task.sleep(nanoseconds: 1_000_000_000)
-            let generatedPath = project.sitePhotoPath
-                ?? generateStylePlaceholder()
-                ?? draft.generatedImagePath
+            let generatedPath = await generateRenderPath(project: project) ?? draft.generatedImagePath
             await MainActor.run {
                 draft.generatedImagePath = generatedPath
                 draft.thumbnailPath = generatedPath
@@ -118,10 +116,47 @@ struct ProjectWorkspaceView: View {
         }
     }
 
-    private func generateStylePlaceholder() -> String? {
-        guard let image = UIImage(named: draft.gateStyle.imageName) else { return nil }
+    private func generateRenderPath(project: ProjectModel) async -> String? {
+        let gateImage = UIImage(named: draft.gateStyle.imageName)
+        let basePhoto: UIImage?
+        if let path = project.sitePhotoPath {
+            basePhoto = await FileStore.readUIImageAsync(path: path)
+        } else {
+            basePhoto = nil
+        }
+
+        let renderedImage: UIImage?
+        if let basePhoto, let gateImage {
+            renderedImage = compositeGate(on: basePhoto, gate: gateImage)
+        } else {
+            renderedImage = gateImage ?? basePhoto
+        }
+
+        guard let renderedImage else { return nil }
         let fileName = "render-\(UUID().uuidString).jpg"
-        return try? FileStore.writeJPEG(image, fileName: fileName, subdirectory: "projects/renders")
+        return try? FileStore.writeJPEG(renderedImage, fileName: fileName, subdirectory: "projects/renders")
+    }
+
+    private func compositeGate(on basePhoto: UIImage, gate: UIImage) -> UIImage {
+        let baseSize = basePhoto.size
+        let renderer = UIGraphicsImageRenderer(size: baseSize)
+        return renderer.image { context in
+            basePhoto.draw(in: CGRect(origin: .zero, size: baseSize))
+
+            let maxGateWidth = baseSize.width * 0.75
+            let maxGateHeight = baseSize.height * 0.55
+            let widthScale = maxGateWidth / gate.size.width
+            let heightScale = maxGateHeight / gate.size.height
+            let scale = min(widthScale, heightScale, 1.0)
+            let gateSize = CGSize(width: gate.size.width * scale, height: gate.size.height * scale)
+            let gateOrigin = CGPoint(
+                x: (baseSize.width - gateSize.width) / 2,
+                y: baseSize.height - gateSize.height - baseSize.height * 0.08
+            )
+
+            context.cgContext.setShadow(offset: CGSize(width: 0, height: 6), blur: 12, color: UIColor.black.withAlphaComponent(0.3).cgColor)
+            gate.draw(in: CGRect(origin: gateOrigin, size: gateSize), blendMode: .normal, alpha: 0.92)
+        }
     }
 }
 
