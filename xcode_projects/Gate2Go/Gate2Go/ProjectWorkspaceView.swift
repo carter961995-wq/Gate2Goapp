@@ -117,7 +117,7 @@ struct ProjectWorkspaceView: View {
     }
 
     private func generateRenderPath(project: ProjectModel) async -> String? {
-        let gateImage = UIImage(named: draft.gateStyle.imageName)
+        let gateImage = await loadGateImage()
         let basePhoto: UIImage?
         if let path = project.sitePhotoPath {
             basePhoto = await FileStore.readUIImageAsync(path: path)
@@ -135,6 +135,29 @@ struct ProjectWorkspaceView: View {
         guard let renderedImage else { return nil }
         let fileName = "render-\(UUID().uuidString).jpg"
         return try? FileStore.writeJPEG(renderedImage, fileName: fileName, subdirectory: "projects/renders")
+    }
+
+    private func loadGateImage() async -> UIImage? {
+        if let assetImage = UIImage(named: draft.gateStyle.imageName) {
+            return assetImage
+        }
+        return await MainActor.run { renderGatePreview() }
+    }
+
+    @MainActor
+    private func renderGatePreview() -> UIImage? {
+        let preview = GateDesignerView(
+            widthFeet: draft.widthFeet,
+            heightFeet: draft.heightFeet,
+            material: draft.material,
+            gateStyle: draft.gateStyle,
+            picketOrientation: draft.picketOrientation,
+            finialStyle: draft.finialStyle,
+            archStyle: draft.archStyle
+        )
+        let renderer = ImageRenderer(content: preview)
+        renderer.scale = UIScreen.main.scale
+        return renderer.uiImage
     }
 
     private func compositeGate(on basePhoto: UIImage, gate: UIImage) -> UIImage {
