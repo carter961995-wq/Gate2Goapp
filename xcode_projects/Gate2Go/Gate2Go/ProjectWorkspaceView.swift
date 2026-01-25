@@ -124,12 +124,13 @@ struct ProjectWorkspaceView: View {
         } else {
             basePhoto = nil
         }
+        let scaledBasePhoto = basePhoto.map { resizeImageIfNeeded($0, maxDimension: 1600) }
 
         let renderedImage: UIImage?
-        if let basePhoto, let gateImage {
-            renderedImage = compositeGate(on: basePhoto, gate: gateImage)
+        if let scaledBasePhoto, let gateImage {
+            renderedImage = compositeGate(on: scaledBasePhoto, gate: gateImage)
         } else {
-            renderedImage = gateImage ?? basePhoto
+            renderedImage = gateImage ?? scaledBasePhoto
         }
 
         guard let renderedImage else { return nil }
@@ -162,7 +163,10 @@ struct ProjectWorkspaceView: View {
 
     private func compositeGate(on basePhoto: UIImage, gate: UIImage) -> UIImage {
         let baseSize = basePhoto.size
-        let renderer = UIGraphicsImageRenderer(size: baseSize)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: baseSize, format: format)
         return renderer.image { context in
             basePhoto.draw(in: CGRect(origin: .zero, size: baseSize))
 
@@ -170,7 +174,7 @@ struct ProjectWorkspaceView: View {
             let maxGateHeight = baseSize.height * 0.55
             let widthScale = maxGateWidth / gate.size.width
             let heightScale = maxGateHeight / gate.size.height
-            let scale = min(widthScale, heightScale, 1.0)
+            let scale = min(widthScale, heightScale)
             let gateSize = CGSize(width: gate.size.width * scale, height: gate.size.height * scale)
             let gateOrigin = CGPoint(
                 x: (baseSize.width - gateSize.width) / 2,
@@ -179,6 +183,20 @@ struct ProjectWorkspaceView: View {
 
             context.cgContext.setShadow(offset: CGSize(width: 0, height: 6), blur: 12, color: UIColor.black.withAlphaComponent(0.3).cgColor)
             gate.draw(in: CGRect(origin: gateOrigin, size: gateSize), blendMode: .normal, alpha: 0.92)
+        }
+    }
+
+    private func resizeImageIfNeeded(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let maxSide = max(image.size.width, image.size.height)
+        guard maxSide > maxDimension else { return image }
+        let scale = maxDimension / maxSide
+        let newSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
         }
     }
 }
