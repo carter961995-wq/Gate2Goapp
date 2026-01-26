@@ -21,8 +21,7 @@ struct NewProjectView: View {
     @State private var photoPath: String?
     @State private var photoPreview: Image?
 
-    @State private var createdProjectId: String?
-    @State private var goToWorkspace: Bool = false
+    @State private var workspaceDestination: WorkspaceDestination?
 
     var body: some View {
         Form {
@@ -80,10 +79,8 @@ struct NewProjectView: View {
         .navigationTitle("New Project")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: pickedPhotoItem) { await loadPhoto() }
-        .navigationDestination(isPresented: $goToWorkspace) {
-            if let createdProjectId {
-                ProjectWorkspaceView(projectId: createdProjectId)
-            }
+        .navigationDestination(item: $workspaceDestination) { destination in
+            ProjectWorkspaceView(projectId: destination.id)
         }
     }
 
@@ -124,9 +121,12 @@ struct NewProjectView: View {
             updatedAt: now
         )
         modelContext.insert(p)
-        createdProjectId = p.id
-        goToWorkspace = true
+        workspaceDestination = WorkspaceDestination(id: p.id)
     }
+}
+
+private struct WorkspaceDestination: Identifiable {
+    let id: String
 }
 
 private extension String {
