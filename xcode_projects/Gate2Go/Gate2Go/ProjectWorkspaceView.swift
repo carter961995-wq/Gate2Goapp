@@ -238,7 +238,7 @@ struct ProjectWorkspaceView: View {
             }
         }
 
-        let hasCutoutPath = await MainActor.run({ draft.cutoutImagePath != nil })
+        let hasCutoutPath = await MainActor.run { draft.cutoutImagePath != nil }
         let wantsGateReference = jobsitePhotoPath != nil || hasCutoutPath
         if wantsGateReference, let gateImage = await loadGateReferenceImage(),
            let encoded = encodeImageForUpload(gateImage, maxDimension: 800, format: .jpeg, jpegQuality: 0.85) {
@@ -246,7 +246,7 @@ struct ProjectWorkspaceView: View {
             references.append(.gateDesign)
         }
 
-        if let cutoutPath = await MainActor.run({ draft.cutoutImagePath }) {
+        if let cutoutPath = await MainActor.run { draft.cutoutImagePath } {
             if let uiImage = await FileStore.readUIImageAsync(path: cutoutPath),
                let encoded = encodeImageForUpload(uiImage, maxDimension: 600, format: .png) {
                 images.append(encoded)
@@ -815,9 +815,9 @@ private struct DesignTabView: View {
     }
 
     private func loadCutoutImageFromPicker() async {
-        guard let cutoutPickerItem else { return }
+        guard let selectedItem = cutoutPickerItem else { return }
         do {
-            if let data = try await cutoutPickerItem.loadTransferable(type: Data.self),
+            if let data = try await selectedItem.loadTransferable(type: Data.self),
                let uiImage = UIImage(data: data) {
                 let fileName = "cutout-\(UUID().uuidString).jpg"
                 let path = try FileStore.writeJPEG(uiImage, fileName: fileName, subdirectory: "projects/cutouts")
