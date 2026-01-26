@@ -152,6 +152,15 @@ struct SettingsView: View {
     
     private var defaultPricingSection: some View {
         Section {
+            Picker("Pricing Region", selection: Binding(
+                get: { settings.pricingRegion },
+                set: { settings.pricingRegion = $0 }
+            )) {
+                ForEach(PricingRegion.allCases) { region in
+                    Text(region.displayName).tag(region)
+                }
+            }
+
             HStack {
                 Text("Default Labor")
                 Spacer()

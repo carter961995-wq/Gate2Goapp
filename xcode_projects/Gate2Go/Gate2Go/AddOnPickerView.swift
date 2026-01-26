@@ -17,22 +17,41 @@ let ADDON_OPTIONS: [AddOnOption] = [
     AddOnOption(id: "keypad", type: .keypad, label: "Keypad", icon: "keyboard", defaultCostCents: 35000),
     AddOnOption(id: "drop_rod", type: .dropRod, label: "Drop Rod", icon: "arrow.down.to.line", defaultCostCents: 8500),
     AddOnOption(id: "latch", type: .latch, label: "Latch", icon: "lock", defaultCostCents: 4500),
-    AddOnOption(id: "opener", type: .opener, label: "Gate Opener", icon: "gear", defaultCostCents: 95000),
+    AddOnOption(id: "opener", type: .opener, label: "Gate Opener", icon: "gear", defaultCostCents: 110_000),
 ]
 
 struct AddOnPickerView: View {
     @Binding var addons: [AddonLineItem]
+    let gateStyle: GateStyle
     
     var body: some View {
         VStack(spacing: 12) {
             ForEach(ADDON_OPTIONS) { option in
+                let openerType = resolvedOpenerType()
+                let displayCost = displayCostCents(for: option, openerType: openerType)
                 AddOnRow(
                     option: option,
                     isEnabled: isAddonEnabled(option.type),
                     quantity: getAddonQuantity(option.type),
+                    displayCostCents: displayCost,
                     onToggle: { toggleAddon(option) },
                     onQuantityChange: { delta in updateQuantity(option.type, delta: delta) }
                 )
+
+                if option.type == .opener, isAddonEnabled(option.type) {
+                    Picker("Opener Type", selection: Binding(
+                        get: { resolvedOpenerType() },
+                        set: { newType in
+                            updateOpenerType(newType)
+                        }
+                    )) {
+                        ForEach(OpenerOperatorType.allCases) { type in
+                            Text(type.displayName).tag(type)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .padding(.horizontal, 12)
+                }
             }
         }
     }
@@ -49,11 +68,16 @@ struct AddOnPickerView: View {
         if isAddonEnabled(option.type) {
             addons.removeAll { $0.type == option.type }
         } else {
+            let openerType = option.type == .opener ? gateStyle.defaultOpenerType : nil
+            let defaultCost = option.type == .opener
+                ? (openerType?.defaultCostCents ?? option.defaultCostCents)
+                : option.defaultCostCents
             let newAddon = AddonLineItem(
                 type: option.type,
                 title: option.label,
+                operatorType: openerType,
                 quantity: 1,
-                contractorCost: Money(amountCents: option.defaultCostCents)
+                contractorCost: Money(amountCents: defaultCost)
             )
             addons.append(newAddon)
         }
@@ -64,12 +88,33 @@ struct AddOnPickerView: View {
         let newQty = max(1, min(10, addons[index].quantity + delta))
         addons[index].quantity = newQty
     }
+
+    private func resolvedOpenerType() -> OpenerOperatorType {
+        addons.first { $0.type == .opener }?.operatorType ?? gateStyle.defaultOpenerType
+    }
+
+    private func updateOpenerType(_ newType: OpenerOperatorType) {
+        guard let index = addons.firstIndex(where: { $0.type == .opener }) else { return }
+        addons[index].operatorType = newType
+        addons[index].contractorCost = Money(amountCents: newType.defaultCostCents)
+    }
+
+    private func displayCostCents(for option: AddOnOption, openerType: OpenerOperatorType) -> Int {
+        if option.type == .opener {
+            if let addon = addons.first(where: { $0.type == .opener }) {
+                return addon.contractorCost.amountCents
+            }
+            return openerType.defaultCostCents
+        }
+        return option.defaultCostCents
+    }
 }
 
 struct AddOnRow: View {
     let option: AddOnOption
     let isEnabled: Bool
     let quantity: Int
+    let displayCostCents: Int
     let onToggle: () -> Void
     let onQuantityChange: (Int) -> Void
     
@@ -85,7 +130,7 @@ struct AddOnRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(option.label)
                     .font(.subheadline.weight(.medium))
-                Text(MoneyFormatting.dollarsString(cents: option.defaultCostCents) + " each")
+                Text(MoneyFormatting.dollarsString(cents: displayCostCents) + " each")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -140,6 +185,6 @@ struct AddOnRow: View {
 }
 
 #Preview {
-    AddOnPickerView(addons: .constant([]))
+    AddOnPickerView(addons: .constant([]), gateStyle: .singleSwing)
         .padding()
 }

@@ -39,6 +39,19 @@ enum GateStyle: String, CaseIterable, Codable, Hashable, Identifiable {
     }
 }
 
+extension GateStyle {
+    var defaultOpenerType: OpenerOperatorType {
+        switch self {
+        case .singleSwing: return .swing
+        case .doubleSwing: return .dualSwing
+        case .cantileverSlide: return .cantileverSlide
+        case .rollGate: return .rollGate
+        case .overheadTrack: return .overheadTrack
+        case .verticalPivot: return .verticalPivot
+        }
+    }
+}
+
 enum Material: String, CaseIterable, Codable, Hashable, Identifiable {
     case wood = "wood"
     case steel = "steel"
@@ -98,11 +111,37 @@ enum OpenerBrand: String, CaseIterable, Codable, Hashable, Identifiable {
 }
 
 enum OpenerOperatorType: String, CaseIterable, Codable, Hashable, Identifiable {
-    case slide
     case swing
     case dualSwing = "dual_swing"
+    case cantileverSlide = "cantilever_slide"
+    case rollGate = "roll_gate"
+    case overheadTrack = "overhead_track"
+    case verticalPivot = "vertical_pivot"
 
     var id: String { rawValue }
+}
+
+extension OpenerOperatorType {
+    var displayName: String {
+        switch self {
+        case .swing: return "Single Swing"
+        case .dualSwing: return "Dual Swing"
+        case .cantileverSlide: return "Cantilever Slide"
+        case .rollGate: return "Roll Gate"
+        case .overheadTrack: return "Overhead Track"
+        case .verticalPivot: return "Vertical Pivot"
+        }
+    }
+
+    var defaultCostCents: Int {
+        switch self {
+        case .swing: return 110_000
+        case .dualSwing: return 250_000
+        case .cantileverSlide, .rollGate: return 300_000
+        case .overheadTrack: return 200_000
+        case .verticalPivot: return 420_000
+        }
+    }
 }
 
 struct AddonLineItem: Identifiable, Codable, Hashable {
@@ -209,6 +248,62 @@ enum GateArchStyle: String, CaseIterable, Codable, Identifiable {
         case .convex: return "Arched Up"
         case .concave: return "Arched Down"
         case .doubleArch: return "Double Arch"
+        }
+    }
+}
+
+enum LatchStyle: String, CaseIterable, Codable, Identifiable {
+    case none
+    case standard
+    case magnetic
+    case keyed
+    case thumb
+    case custom
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .none: return "None"
+        case .standard: return "Standard"
+        case .magnetic: return "Magnetic"
+        case .keyed: return "Keyed"
+        case .thumb: return "Thumb Latch"
+        case .custom: return "Custom"
+        }
+    }
+}
+
+enum CutoutMode: String, CaseIterable, Codable, Identifiable {
+    case none
+    case text
+    case image
+    case textAndImage = "text_and_image"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .none: return "None"
+        case .text: return "Text"
+        case .image: return "Image"
+        case .textAndImage: return "Text + Image"
+        }
+    }
+}
+
+enum CutoutPlacement: String, CaseIterable, Codable, Identifiable {
+    case center
+    case topRail = "top_rail"
+    case crest
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .center: return "Center"
+        case .topRail: return "Top Rail"
+        case .crest: return "Crest"
         }
     }
 }

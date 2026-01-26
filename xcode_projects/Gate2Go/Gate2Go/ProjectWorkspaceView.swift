@@ -7,6 +7,7 @@ import SwiftUI
 import SwiftData
 import UIKit
 import Foundation
+import PhotosUI
 
 struct ProjectWorkspaceView: View {
     @Environment(\.modelContext) private var modelContext
@@ -71,15 +72,24 @@ struct ProjectWorkspaceView: View {
                             style: draft.gateStyle,
                             material: draft.material,
                             widthFeet: draft.widthFeet,
-                            heightFeet: draft.heightFeet
+                            heightFeet: draft.heightFeet,
+                            regionMultiplier: settings.pricingRegion.multiplier
                         )
                         draft.recomputeTotals()
                     }
                 }
-                .onChange(of: draft.gateStyle) { _, _ in draft.reseedBasePriceIfAuto() }
-                .onChange(of: draft.material) { _, _ in draft.reseedBasePriceIfAuto() }
-                .onChange(of: draft.widthFeet) { _, _ in draft.reseedBasePriceIfAuto() }
-                .onChange(of: draft.heightFeet) { _, _ in draft.reseedBasePriceIfAuto() }
+                .onChange(of: draft.gateStyle) { _, _ in
+                    draft.reseedBasePriceIfAuto(regionMultiplier: settings.pricingRegion.multiplier)
+                }
+                .onChange(of: draft.material) { _, _ in
+                    draft.reseedBasePriceIfAuto(regionMultiplier: settings.pricingRegion.multiplier)
+                }
+                .onChange(of: draft.widthFeet) { _, _ in
+                    draft.reseedBasePriceIfAuto(regionMultiplier: settings.pricingRegion.multiplier)
+                }
+                .onChange(of: draft.heightFeet) { _, _ in
+                    draft.reseedBasePriceIfAuto(regionMultiplier: settings.pricingRegion.multiplier)
+                }
             } else {
                 ContentUnavailableView("Project not found", systemImage: "questionmark.folder")
             }
@@ -88,13 +98,26 @@ struct ProjectWorkspaceView: View {
 
     private func saveVersion(project: ProjectModel) {
         let now = Date()
+        var params = draft.params
+        params["latchStyle"] = .string(draft.latchStyle.rawValue)
+        params["cutoutMode"] = .string(draft.cutoutMode.rawValue)
+        params["cutoutPlacement"] = .string(draft.cutoutPlacement.rawValue)
+        if !draft.cutoutText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            params["cutoutText"] = .string(draft.cutoutText)
+        }
+        if let path = draft.cutoutImagePath {
+            params["cutoutImagePath"] = .string(path)
+        }
+        if !draft.cutoutDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            params["cutoutDescription"] = .string(draft.cutoutDescription)
+        }
         let design = GateDesignModel(
             projectId: project.id,
             gateStyle: draft.gateStyle,
             material: draft.material,
             widthFeet: draft.widthFeet,
             heightFeet: draft.heightFeet,
-            params: draft.params,
+            params: params,
             addons: draft.addons,
             basePriceCents: draft.basePriceCents,
             totalPriceCents: draft.totalPriceCents,
@@ -203,11 +226,64 @@ struct ProjectWorkspaceView: View {
         if draft.material == .steel {
             components.append("finials: \(draft.finialStyle.displayName)")
         }
+        if draft.latchStyle != .none {
+            components.append("latch style: \(draft.latchStyle.displayName)")
+        }
+        let hardwareDetails = buildHardwareDetails()
+        if !hardwareDetails.isEmpty {
+            components.append("include visible hardware: \(hardwareDetails.joined(separator: \", \"))")
+        }
+        let cutoutDetails = buildCutoutDetails()
+        if !cutoutDetails.isEmpty {
+            components.append(cutoutDetails)
+        }
         if let name = project.name.isEmpty ? nil : project.name {
             components.append("project: \(name)")
         }
-        components.append("natural lighting, realistic shadows, no text")
+        components.append("natural lighting, realistic shadows, no watermarks")
         return components.joined(separator: ", ")
+    }
+
+    @MainActor
+    private func buildHardwareDetails() -> [String] {
+        var details: [String] = []
+        for addon in draft.addons {
+            switch addon.type {
+            case .keypad:
+                details.append("keypad entry")
+            case .dropRod:
+                details.append("drop rod")
+            case .latch:
+                details.append("latch hardware")
+            case .opener:
+                if let type = addon.operatorType {
+                    details.append("\(type.displayName.lowercased()) gate opener")
+                } else {
+                    details.append("gate opener")
+                }
+            }
+        }
+        return details
+    }
+
+    @MainActor
+    private func buildCutoutDetails() -> String {
+        guard draft.cutoutMode != .none else { return "" }
+        let placement = draft.cutoutPlacement.displayName.lowercased()
+        var parts: [String] = []
+        if (draft.cutoutMode == .text || draft.cutoutMode == .textAndImage),
+           !draft.cutoutText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            parts.append("custom plasma cut text '\(draft.cutoutText)' at \(placement)")
+        }
+        if draft.cutoutMode == .image || draft.cutoutMode == .textAndImage {
+            let description = draft.cutoutDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !description.isEmpty {
+                parts.append("custom plasma cut image of \(description) at \(placement)")
+            } else {
+                parts.append("custom plasma cut image at \(placement)")
+            }
+        }
+        return parts.joined(separator: " and ")
     }
 
     private func generateRenderPath(project: ProjectModel) async -> String? {
@@ -304,6 +380,12 @@ struct GateDesignDraft: Hashable {
     var picketOrientation: GatePicketOrientation = .vertical
     var finialStyle: GateFinialStyle = .none
     var archStyle: GateArchStyle = .flat
+    var latchStyle: LatchStyle = .standard
+    var cutoutMode: CutoutMode = .none
+    var cutoutPlacement: CutoutPlacement = .center
+    var cutoutText: String = ""
+    var cutoutImagePath: String?
+    var cutoutDescription: String = ""
 
     var params: [String: JSONValue] = [:]
     var addons: [AddonLineItem] = []
@@ -338,13 +420,14 @@ struct GateDesignDraft: Hashable {
         )
     }
 
-    mutating func reseedBasePriceIfAuto() {
+    mutating func reseedBasePriceIfAuto(regionMultiplier: Double) {
         guard isBasePriceAutoSeeded else { return }
         basePriceCents = PricingCalculator.defaultBasePriceCents(
             style: gateStyle,
             material: material,
             widthFeet: widthFeet,
-            heightFeet: heightFeet
+            heightFeet: heightFeet,
+            regionMultiplier: regionMultiplier
         )
         recomputeTotals()
     }
@@ -370,6 +453,9 @@ private struct DesignTabView: View {
     let onSaveVersion: () -> Void
 
     @EnvironmentObject private var settings: Gate2GoSettings
+
+    @State private var cutoutPickerItem: PhotosPickerItem?
+    @State private var cutoutPreview: Image?
 
     private let columns = [GridItem(.adaptive(minimum: 160), spacing: 12)]
 
@@ -490,6 +576,83 @@ private struct DesignTabView: View {
                 .padding(14)
                 .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
+                Group {
+                    Text("Hardware & Cutouts")
+                        .font(.headline)
+
+                    VStack(spacing: 12) {
+                        HStack {
+                            Text("Latch Style")
+                            Spacer()
+                            Picker("Latch Style", selection: $draft.latchStyle) {
+                                ForEach(LatchStyle.allCases) { style in
+                                    Text(style.displayName).tag(style)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        }
+
+                        HStack {
+                            Text("Cutout Type")
+                            Spacer()
+                            Picker("Cutout Type", selection: $draft.cutoutMode) {
+                                ForEach(CutoutMode.allCases) { mode in
+                                    Text(mode.displayName).tag(mode)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        }
+
+                        if draft.cutoutMode != .none {
+                            HStack {
+                                Text("Placement")
+                                Spacer()
+                                Picker("Placement", selection: $draft.cutoutPlacement) {
+                                    ForEach(CutoutPlacement.allCases) { placement in
+                                        Text(placement.displayName).tag(placement)
+                                    }
+                                }
+                                .pickerStyle(.segmented)
+                                .frame(maxWidth: 240)
+                            }
+                        }
+
+                        if draft.cutoutMode == .text || draft.cutoutMode == .textAndImage {
+                            TextField("Initials or short text", text: $draft.cutoutText)
+                                .textInputAutocapitalization(.characters)
+                                .autocorrectionDisabled()
+                        }
+
+                        if draft.cutoutMode == .image || draft.cutoutMode == .textAndImage {
+                            PhotosPicker(selection: $cutoutPickerItem, matching: .images) {
+                                Text(draft.cutoutImagePath == nil ? "Add Cutout Image" : "Change Cutout Image")
+                            }
+
+                            if let cutoutPreview {
+                                cutoutPreview
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(height: 120)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            }
+
+                            TextField("Image description (optional)", text: $draft.cutoutDescription)
+                                .autocorrectionDisabled()
+
+                            if draft.cutoutImagePath != nil {
+                                Button("Remove Cutout Image", role: .destructive) {
+                                    draft.cutoutImagePath = nil
+                                    cutoutPreview = nil
+                                    cutoutPickerItem = nil
+                                }
+                                .font(.caption)
+                            }
+                        }
+                    }
+                }
+                .padding(14)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
                 VStack(spacing: 10) {
                     Button {
                         onGenerate()
@@ -535,20 +698,78 @@ private struct DesignTabView: View {
         .onChange(of: draft.addons) { _, _ in
             draft.recomputeTotals()
         }
+        .task(id: cutoutPickerItem) {
+            await loadCutoutImageFromPicker()
+        }
+        .task(id: draft.cutoutImagePath) {
+            await loadCutoutPreview()
+        }
+    }
+
+    private func loadCutoutImageFromPicker() async {
+        guard let cutoutPickerItem else { return }
+        do {
+            if let data = try await cutoutPickerItem.loadTransferable(type: Data.self),
+               let uiImage = UIImage(data: data) {
+                let fileName = "cutout-\(UUID().uuidString).jpg"
+                let path = try FileStore.writeJPEG(uiImage, fileName: fileName, subdirectory: "projects/cutouts")
+                await MainActor.run {
+                    draft.cutoutImagePath = path
+                    cutoutPreview = Image(uiImage: uiImage)
+                }
+            }
+        } catch {
+            await MainActor.run {
+                cutoutPickerItem = nil
+            }
+        }
+    }
+
+    private func loadCutoutPreview() async {
+        guard let path = draft.cutoutImagePath else {
+            await MainActor.run { cutoutPreview = nil }
+            return
+        }
+        let image = await FileStore.readUIImageAsync(path: path)
+        await MainActor.run {
+            if let image {
+                cutoutPreview = Image(uiImage: image)
+            } else {
+                cutoutPreview = nil
+            }
+        }
     }
 }
 
 private struct OptionsPriceTabView: View {
     @Binding var draft: GateDesignDraft
     let tier: SubscriptionTier
+    @EnvironmentObject private var settings: Gate2GoSettings
 
     var body: some View {
         Form {
             Section("Add-ons") {
-                AddOnPickerView(addons: $draft.addons)
+                AddOnPickerView(addons: $draft.addons, gateStyle: draft.gateStyle)
             }
 
             Section("Pricing") {
+                Picker("Pricing Region", selection: Binding(
+                    get: { settings.pricingRegion },
+                    set: { settings.pricingRegion = $0 }
+                )) {
+                    ForEach(PricingRegion.allCases) { region in
+                        Text(region.displayName).tag(region)
+                    }
+                }
+
+                HStack {
+                    Text("Regional average")
+                    Spacer()
+                    Text(MoneyFormatting.dollarsString(cents: regionalAverageCents))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+
                 HStack {
                     Text("Base price")
                     Spacer()
@@ -585,6 +806,11 @@ private struct OptionsPriceTabView: View {
             .onChange(of: draft.laborCents) { _, _ in draft.recomputeTotals() }
             .onChange(of: draft.markupPercent) { _, _ in draft.recomputeTotals() }
             .onChange(of: draft.taxPercent) { _, _ in draft.recomputeTotals() }
+            .onChange(of: settings.pricingRegion) { _, _ in
+                if draft.isBasePriceAutoSeeded {
+                    draft.reseedBasePriceIfAuto(regionMultiplier: settings.pricingRegion.multiplier)
+                }
+            }
 
             Section("Total") {
                 Text(MoneyFormatting.dollarsString(cents: draft.totalPriceCents))
@@ -592,6 +818,16 @@ private struct OptionsPriceTabView: View {
                     .monospacedDigit()
             }
         }
+    }
+
+    private var regionalAverageCents: Int {
+        PricingCalculator.defaultBasePriceCents(
+            style: draft.gateStyle,
+            material: draft.material,
+            widthFeet: draft.widthFeet,
+            heightFeet: draft.heightFeet,
+            regionMultiplier: settings.pricingRegion.multiplier
+        )
     }
 }
 
