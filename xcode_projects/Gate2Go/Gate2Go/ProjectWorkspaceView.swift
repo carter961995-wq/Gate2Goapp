@@ -134,6 +134,10 @@ struct ProjectWorkspaceView: View {
 
     private func generatePhotoreal(project: ProjectModel) {
         guard !isGenerating else { return }
+        Task { @MainActor in
+            generateErrorMessage = nil
+            showGenerateError = false
+        }
         isGenerating = true
 
         Task {
@@ -228,7 +232,7 @@ struct ProjectWorkspaceView: View {
 
         if let path = jobsitePhotoPath {
             if let uiImage = await FileStore.readUIImageAsync(path: path),
-               let encoded = encodeImageForUpload(uiImage, maxDimension: 1600, format: .jpeg) {
+               let encoded = encodeImageForUpload(uiImage, maxDimension: 1200, format: .jpeg, jpegQuality: 0.75) {
                 images.append(encoded)
                 references.append(.jobsite)
             }
@@ -237,14 +241,14 @@ struct ProjectWorkspaceView: View {
         let hasCutoutPath = await MainActor.run({ draft.cutoutImagePath != nil })
         let wantsGateReference = jobsitePhotoPath != nil || hasCutoutPath
         if wantsGateReference, let gateImage = await loadGateReferenceImage(),
-           let encoded = encodeImageForUpload(gateImage, maxDimension: 900, format: .png) {
+           let encoded = encodeImageForUpload(gateImage, maxDimension: 800, format: .jpeg, jpegQuality: 0.85) {
             images.append(encoded)
             references.append(.gateDesign)
         }
 
         if let cutoutPath = await MainActor.run({ draft.cutoutImagePath }) {
             if let uiImage = await FileStore.readUIImageAsync(path: cutoutPath),
-               let encoded = encodeImageForUpload(uiImage, maxDimension: 800, format: .png) {
+               let encoded = encodeImageForUpload(uiImage, maxDimension: 600, format: .png) {
                 images.append(encoded)
                 references.append(.cutoutDesign)
             }
@@ -281,13 +285,13 @@ struct ProjectWorkspaceView: View {
         case png
     }
 
-    private func encodeImageForUpload(_ image: UIImage, maxDimension: CGFloat, format: UploadImageFormat) -> String? {
+    private func encodeImageForUpload(_ image: UIImage, maxDimension: CGFloat, format: UploadImageFormat, jpegQuality: CGFloat = 0.8) -> String? {
         let resized = resizeImageIfNeeded(image, maxDimension: maxDimension)
         let data: Data?
         let mimeType: String
         switch format {
         case .jpeg:
-            data = resized.jpegData(compressionQuality: 0.85)
+            data = resized.jpegData(compressionQuality: jpegQuality)
             mimeType = "image/jpeg"
         case .png:
             data = resized.pngData()
