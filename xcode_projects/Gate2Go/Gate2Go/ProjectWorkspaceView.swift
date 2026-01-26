@@ -325,7 +325,7 @@ struct ProjectWorkspaceView: View {
         }
         let hardwareDetails = buildHardwareDetails()
         if !hardwareDetails.isEmpty {
-            components.append("include visible hardware: \(hardwareDetails.joined(separator: \", \"))")
+            components.append("include visible hardware: \(hardwareDetails.joined(separator: ", "))")
         }
         let cutoutDetails = buildCutoutDetails()
         if !cutoutDetails.isEmpty {
