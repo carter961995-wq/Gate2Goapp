@@ -10,6 +10,7 @@ import PhotosUI
 
 struct SettingsView: View {
     @EnvironmentObject private var settings: Gate2GoSettings
+    @Binding var selectedTab: MainTab
     @State private var showingImagePicker = false
     @State private var selectedItem: PhotosPickerItem?
     @State private var showResetConfirmation = false
@@ -27,6 +28,7 @@ struct SettingsView: View {
             resetSection
         }
         .navigationTitle("Settings")
+        .navigationBarBackButtonHidden(true)
         .alert("Reset App", isPresented: $showResetConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Reset", role: .destructive) {
@@ -34,6 +36,21 @@ struct SettingsView: View {
             }
         } message: {
             Text("This will clear all data including projects, designs, and settings. You'll see the onboarding screens again.")
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    selectedTab = .projects
+                } label: {
+                    Label("Back", systemImage: "chevron.left")
+                }
+            }
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    dismissKeyboard()
+                }
+            }
         }
     }
     
@@ -218,11 +235,15 @@ struct SettingsView: View {
             Text("Clears all projects, designs, and settings. Use this if you want to start fresh.")
         }
     }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
 }
 
 #Preview {
     NavigationStack {
-        SettingsView()
+        SettingsView(selectedTab: .constant(.settings))
             .environmentObject(Gate2GoSettings())
     }
 }

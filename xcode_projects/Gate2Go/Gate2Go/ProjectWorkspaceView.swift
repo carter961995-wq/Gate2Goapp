@@ -895,6 +895,16 @@ private struct OptionsPriceTabView: View {
                     }
                 }
 
+                Toggle("Use regional average", isOn: Binding(
+                    get: { draft.isBasePriceAutoSeeded },
+                    set: { newValue in
+                        draft.isBasePriceAutoSeeded = newValue
+                        if newValue {
+                            draft.reseedBasePriceIfAuto(regionMultiplier: settings.pricingRegion.multiplier)
+                        }
+                    }
+                ))
+
                 HStack {
                     Text("Regional average")
                     Spacer()
@@ -910,6 +920,7 @@ private struct OptionsPriceTabView: View {
                         .multilineTextAlignment(.trailing)
                         .keyboardType(.numberPad)
                         .monospacedDigit()
+                        .disabled(draft.isBasePriceAutoSeeded)
                 }
                 HStack {
                     Text("Labor")

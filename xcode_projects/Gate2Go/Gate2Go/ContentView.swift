@@ -23,23 +23,32 @@ struct ContentView: View {
 }
 
 struct MainTabView: View {
+    @State private var selection: MainTab = .projects
+
     var body: some View {
-        TabView {
+        TabView(selection: $selection) {
             NavigationStack {
                 ProjectsListView()
             }
             .tabItem {
                 Label("Projects", systemImage: "folder.fill")
             }
+            .tag(MainTab.projects)
             
             NavigationStack {
-                SettingsView()
+                SettingsView(selectedTab: $selection)
             }
             .tabItem {
                 Label("Settings", systemImage: "gearshape.fill")
             }
+            .tag(MainTab.settings)
         }
     }
+}
+
+enum MainTab: Hashable {
+    case projects
+    case settings
 }
 
 #Preview {
