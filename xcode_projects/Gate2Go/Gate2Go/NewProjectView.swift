@@ -125,7 +125,7 @@ struct NewProjectView: View {
     }
 }
 
-private struct WorkspaceDestination: Identifiable {
+private struct WorkspaceDestination: Hashable {
     let id: String
 }
 
