@@ -163,13 +163,7 @@ struct ProjectWorkspaceView: View {
     private func generateAIImage(prompt: String, jobsitePhotoPath: String?) async -> (String?, String?) {
         let payload = await buildEditImagesPayload(jobsitePhotoPath: jobsitePhotoPath)
         if !payload.images.isEmpty {
-            var editPrompt = prompt
-            if payload.hasJobsitePhoto {
-                editPrompt += ", place the gate in the provided jobsite photo"
-            }
-            if payload.hasCutoutImage {
-                editPrompt += ", use the second reference image for the plasma cut design"
-            }
+            let editPrompt = buildEditPrompt(basePrompt: prompt, references: payload.references)
             return await requestImageEdit(prompt: editPrompt, images: payload.images)
         }
         return await requestImageGenerate(prompt: prompt)
@@ -228,28 +222,58 @@ struct ProjectWorkspaceView: View {
         }
     }
 
-    private func buildEditImagesPayload(jobsitePhotoPath: String?) async -> (images: [String], hasJobsitePhoto: Bool, hasCutoutImage: Bool) {
+    private func buildEditImagesPayload(jobsitePhotoPath: String?) async -> (images: [String], references: [ImageReference]) {
         var images: [String] = []
-        var hasJobsitePhoto = false
-        var hasCutoutImage = false
+        var references: [ImageReference] = []
 
         if let path = jobsitePhotoPath {
             if let uiImage = await FileStore.readUIImageAsync(path: path),
                let encoded = encodeImageForUpload(uiImage, maxDimension: 1600, format: .jpeg) {
                 images.append(encoded)
-                hasJobsitePhoto = true
+                references.append(.jobsite)
             }
+        }
+
+        let hasCutoutPath = await MainActor.run({ draft.cutoutImagePath != nil })
+        let wantsGateReference = jobsitePhotoPath != nil || hasCutoutPath
+        if wantsGateReference, let gateImage = await loadGateReferenceImage(),
+           let encoded = encodeImageForUpload(gateImage, maxDimension: 900, format: .png) {
+            images.append(encoded)
+            references.append(.gateDesign)
         }
 
         if let cutoutPath = await MainActor.run({ draft.cutoutImagePath }) {
             if let uiImage = await FileStore.readUIImageAsync(path: cutoutPath),
                let encoded = encodeImageForUpload(uiImage, maxDimension: 800, format: .png) {
                 images.append(encoded)
-                hasCutoutImage = true
+                references.append(.cutoutDesign)
             }
         }
 
-        return (images, hasJobsitePhoto, hasCutoutImage)
+        return (images, references)
+    }
+
+    private func buildEditPrompt(basePrompt: String, references: [ImageReference]) -> String {
+        guard !references.isEmpty else { return basePrompt }
+        let details = references.enumerated().map { index, reference in
+            let label = "image \(index + 1)"
+            switch reference {
+            case .jobsite:
+                return "\(label): jobsite photo background"
+            case .gateDesign:
+                return "\(label): gate design reference to match style and proportions"
+            case .cutoutDesign:
+                return "\(label): plasma cut design reference"
+            }
+        }
+        return basePrompt + ". Reference images: " + details.joined(separator: ", ") + "."
+    }
+
+    private func loadGateReferenceImage() async -> UIImage? {
+        if let assetImage = UIImage(named: draft.gateStyle.imageName) {
+            return assetImage
+        }
+        return await MainActor.run { renderGatePreview() }
     }
 
     private enum UploadImageFormat {
@@ -510,6 +534,12 @@ private struct ImageGenerateRequest: Encodable {
 private struct ImageEditRequest: Encodable {
     let prompt: String
     let images: [String]
+}
+
+private enum ImageReference {
+    case jobsite
+    case gateDesign
+    case cutoutDesign
 }
 
 private struct ImageGenerateResponse: Decodable {
