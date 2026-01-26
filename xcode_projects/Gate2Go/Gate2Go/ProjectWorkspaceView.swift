@@ -232,7 +232,7 @@ struct ProjectWorkspaceView: View {
 
         if let path = jobsitePhotoPath {
             if let uiImage = await FileStore.readUIImageAsync(path: path),
-               let encoded = encodeImageForUpload(uiImage, maxDimension: 1200, format: .jpeg, jpegQuality: 0.75) {
+               let encoded = encodeImageForUpload(uiImage, maxDimension: 1024, format: .jpeg, jpegQuality: 0.7) {
                 images.append(encoded)
                 references.append(.jobsite)
             }
@@ -241,14 +241,14 @@ struct ProjectWorkspaceView: View {
         let hasCutoutPath = await MainActor.run { draft.cutoutImagePath != nil }
         let wantsGateReference = jobsitePhotoPath != nil || hasCutoutPath
         if wantsGateReference, let gateImage = await loadGateReferenceImage(),
-           let encoded = encodeImageForUpload(gateImage, maxDimension: 800, format: .jpeg, jpegQuality: 0.85) {
+           let encoded = encodeImageForUpload(gateImage, maxDimension: 640, format: .jpeg, jpegQuality: 0.8) {
             images.append(encoded)
             references.append(.gateDesign)
         }
 
         if let cutoutPath = await MainActor.run { draft.cutoutImagePath } {
             if let uiImage = await FileStore.readUIImageAsync(path: cutoutPath),
-               let encoded = encodeImageForUpload(uiImage, maxDimension: 600, format: .png) {
+               let encoded = encodeImageForUpload(uiImage, maxDimension: 512, format: .png) {
                 images.append(encoded)
                 references.append(.cutoutDesign)
             }
@@ -270,10 +270,15 @@ struct ProjectWorkspaceView: View {
                 return "\(label): plasma cut design reference"
             }
         }
-        return basePrompt + ". Reference images: " + details.joined(separator: ", ") + "."
+        let styleHint = buildGateStyleHint()
+        let hintSuffix = styleHint.isEmpty ? "" : " " + styleHint
+        return basePrompt + hintSuffix + ". Reference images: " + details.joined(separator: ", ") + "."
     }
 
     private func loadGateReferenceImage() async -> UIImage? {
+        if draft.gateStyle == .verticalPivot {
+            return await MainActor.run { renderGatePreview() }
+        }
         if let assetImage = UIImage(named: draft.gateStyle.imageName) {
             return assetImage
         }
@@ -323,6 +328,10 @@ struct ProjectWorkspaceView: View {
         if draft.latchStyle != .none {
             components.append("latch style: \(draft.latchStyle.displayName)")
         }
+        let gateStyleHint = buildGateStyleHint()
+        if !gateStyleHint.isEmpty {
+            components.append(gateStyleHint)
+        }
         let hardwareDetails = buildHardwareDetails()
         if !hardwareDetails.isEmpty {
             components.append("include visible hardware: \(hardwareDetails.joined(separator: ", "))")
@@ -336,6 +345,22 @@ struct ProjectWorkspaceView: View {
         }
         components.append("natural lighting, realistic shadows, no watermarks")
         return components.joined(separator: ", ")
+    }
+
+    @MainActor
+    private func buildGateStyleHint() -> String {
+        switch draft.gateStyle {
+        case .verticalPivot:
+            return "single leaf vertical pivot gate with center pivot hinge, not double swing"
+        case .cantileverSlide:
+            return "cantilever slide gate with visible track-free sliding"
+        case .rollGate:
+            return "rolling gate with compact roll-up operator"
+        case .overheadTrack:
+            return "overhead track gate with top rail guide"
+        default:
+            return ""
+        }
     }
 
     @MainActor
