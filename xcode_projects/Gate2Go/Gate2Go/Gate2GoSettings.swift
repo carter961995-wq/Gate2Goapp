@@ -33,7 +33,10 @@ class Gate2GoSettings: ObservableObject {
 
     var pricingRegion: PricingRegion {
         get { PricingRegion(rawValue: pricingRegionRaw) ?? .national }
-        set { pricingRegionRaw = newValue.rawValue }
+        set {
+            pricingRegionRaw = newValue.rawValue
+            objectWillChange.send()
+        }
     }
     
     var companyLogo: UIImage? {

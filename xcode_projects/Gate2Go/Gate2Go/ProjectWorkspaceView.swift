@@ -140,7 +140,8 @@ struct ProjectWorkspaceView: View {
             defer { Task { @MainActor in isGenerating = false } }
             try? await Task.sleep(nanoseconds: 1_000_000_000)
             let prompt = await MainActor.run { buildPrompt(project: project) }
-            if let generatedPath = await generateAIImage(prompt: prompt) {
+            let (aiPath, aiError) = await generateAIImage(prompt: prompt, jobsitePhotoPath: project.sitePhotoPath)
+            if let generatedPath = aiPath {
                 await MainActor.run {
                     draft.generatedImagePath = generatedPath
                     draft.thumbnailPath = generatedPath
@@ -152,16 +153,41 @@ struct ProjectWorkspaceView: View {
                 }
             } else {
                 await MainActor.run {
-                    generateErrorMessage = "Unable to generate an image right now."
+                    generateErrorMessage = aiError ?? "Unable to generate an image right now."
                     showGenerateError = true
                 }
             }
         }
     }
 
-    private func generateAIImage(prompt: String) async -> String? {
+    private func generateAIImage(prompt: String, jobsitePhotoPath: String?) async -> (String?, String?) {
+        let payload = await buildEditImagesPayload(jobsitePhotoPath: jobsitePhotoPath)
+        if !payload.images.isEmpty {
+            var editPrompt = prompt
+            if payload.hasJobsitePhoto {
+                editPrompt += ", place the gate in the provided jobsite photo"
+            }
+            if payload.hasCutoutImage {
+                editPrompt += ", use the second reference image for the plasma cut design"
+            }
+            return await requestImageEdit(prompt: editPrompt, images: payload.images)
+        }
+        return await requestImageGenerate(prompt: prompt)
+    }
+
+    private func requestImageGenerate(prompt: String) async -> (String?, String?) {
         let baseURL = await ImageGenerationConfig.baseURL
         let url = baseURL.appendingPathComponent("api/images/generate")
+        return await sendImageRequest(url: url, body: ImageGenerateRequest(prompt: prompt, size: "1024x1024"))
+    }
+
+    private func requestImageEdit(prompt: String, images: [String]) async -> (String?, String?) {
+        let baseURL = await ImageGenerationConfig.baseURL
+        let url = baseURL.appendingPathComponent("api/images/edit")
+        return await sendImageRequest(url: url, body: ImageEditRequest(prompt: prompt, images: images))
+    }
+
+    private func sendImageRequest<T: Encodable>(url: URL, body: T) async -> (String?, String?) {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -170,42 +196,82 @@ struct ProjectWorkspaceView: View {
             request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
         }
 
-        let body = ImageGenerateRequest(prompt: prompt, size: "1024x1024")
-        guard let payload = try? JSONEncoder().encode(body) else { return nil }
+        guard let payload = try? JSONEncoder().encode(body) else {
+            return (nil, "Unable to encode request.")
+        }
         request.httpBody = payload
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse else { return nil }
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return (nil, "Invalid server response.")
+            }
             guard (200...299).contains(httpResponse.statusCode) else {
                 let message = String(data: data, encoding: .utf8)
-                await MainActor.run {
-                    generateErrorMessage = message?.isEmpty == false ? message : "Server error (\(httpResponse.statusCode))."
-                    showGenerateError = true
-                }
-                return nil
+                return (nil, message?.isEmpty == false ? message : "Server error (\(httpResponse.statusCode)).")
             }
 
             let decoded = try JSONDecoder().decode(ImageGenerateResponse.self, from: data)
             guard decoded.success, let imageUrl = decoded.imageUrl else {
                 let message = decoded.error ?? decoded.message ?? "Image generation failed."
-                await MainActor.run {
-                    generateErrorMessage = message
-                    showGenerateError = true
-                }
-                return nil
+                return (nil, message)
             }
-            guard let imageData = decodeDataURL(imageUrl), let image = UIImage(data: imageData) else { return nil }
+            guard let imageData = decodeDataURL(imageUrl), let image = UIImage(data: imageData) else {
+                return (nil, "Unable to decode image.")
+            }
             let scaled = resizeImageIfNeeded(image, maxDimension: 1600)
             let fileName = "render-\(UUID().uuidString).jpg"
-            return try? FileStore.writeJPEG(scaled, fileName: fileName, subdirectory: "projects/renders")
+            let path = try? FileStore.writeJPEG(scaled, fileName: fileName, subdirectory: "projects/renders")
+            return (path, nil)
         } catch {
-            await MainActor.run {
-                generateErrorMessage = error.localizedDescription
-                showGenerateError = true
-            }
-            return nil
+            return (nil, error.localizedDescription)
         }
+    }
+
+    private func buildEditImagesPayload(jobsitePhotoPath: String?) async -> (images: [String], hasJobsitePhoto: Bool, hasCutoutImage: Bool) {
+        var images: [String] = []
+        var hasJobsitePhoto = false
+        var hasCutoutImage = false
+
+        if let path = jobsitePhotoPath {
+            if let uiImage = await FileStore.readUIImageAsync(path: path),
+               let encoded = encodeImageForUpload(uiImage, maxDimension: 1600, format: .jpeg) {
+                images.append(encoded)
+                hasJobsitePhoto = true
+            }
+        }
+
+        if let cutoutPath = await MainActor.run({ draft.cutoutImagePath }) {
+            if let uiImage = await FileStore.readUIImageAsync(path: cutoutPath),
+               let encoded = encodeImageForUpload(uiImage, maxDimension: 800, format: .png) {
+                images.append(encoded)
+                hasCutoutImage = true
+            }
+        }
+
+        return (images, hasJobsitePhoto, hasCutoutImage)
+    }
+
+    private enum UploadImageFormat {
+        case jpeg
+        case png
+    }
+
+    private func encodeImageForUpload(_ image: UIImage, maxDimension: CGFloat, format: UploadImageFormat) -> String? {
+        let resized = resizeImageIfNeeded(image, maxDimension: maxDimension)
+        let data: Data?
+        let mimeType: String
+        switch format {
+        case .jpeg:
+            data = resized.jpegData(compressionQuality: 0.85)
+            mimeType = "image/jpeg"
+        case .png:
+            data = resized.pngData()
+            mimeType = "image/png"
+        }
+        guard let data else { return nil }
+        let base64 = data.base64EncodedString()
+        return "data:\(mimeType);base64,\(base64)"
     }
 
     private func decodeDataURL(_ value: String) -> Data? {
@@ -281,6 +347,9 @@ struct ProjectWorkspaceView: View {
                 parts.append("custom plasma cut image of \(description) at \(placement)")
             } else {
                 parts.append("custom plasma cut image at \(placement)")
+            }
+            if draft.cutoutImagePath != nil {
+                parts.append("use the provided reference image for cutout details")
             }
         }
         return parts.joined(separator: " and ")
@@ -436,6 +505,11 @@ struct GateDesignDraft: Hashable {
 private struct ImageGenerateRequest: Encodable {
     let prompt: String
     let size: String
+}
+
+private struct ImageEditRequest: Encodable {
+    let prompt: String
+    let images: [String]
 }
 
 private struct ImageGenerateResponse: Decodable {
