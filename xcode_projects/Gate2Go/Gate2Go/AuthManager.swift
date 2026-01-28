@@ -241,7 +241,8 @@ final class AuthManager: ObservableObject {
             errorMessage = "Firebase is not configured."
             return
         }
-        let credential = OAuthProvider.credential(withProviderID: "apple.com", idToken: idTokenString, rawNonce: nonce)
+        // Older FirebaseAuth builds expose the accessToken-based credential helper.
+        let credential = OAuthProvider.credential(withProviderID: "apple.com", idToken: idTokenString, accessToken: nil)
         do {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                 Auth.auth().signIn(with: credential) { _, error in
