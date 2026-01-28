@@ -200,7 +200,7 @@ final class AuthManager: ObservableObject {
 
 #if canImport(FirebaseAuth)
     private func signInWithEmail(email: String, password: String) async throws {
-        try await withCheckedThrowingContinuation(resultType: Void.self) { (continuation: CheckedContinuation<Void, Error>) in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             Auth.auth().signIn(withEmail: email, password: password) { _, error in
                 if let error {
                     continuation.resume(throwing: error)
@@ -212,7 +212,7 @@ final class AuthManager: ObservableObject {
     }
 
     private func createUser(email: String, password: String) async throws {
-        try await withCheckedThrowingContinuation(resultType: Void.self) { (continuation: CheckedContinuation<Void, Error>) in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             Auth.auth().createUser(withEmail: email, password: password) { _, error in
                 if let error {
                     continuation.resume(throwing: error)
@@ -224,7 +224,7 @@ final class AuthManager: ObservableObject {
     }
 
     private func deleteUser(_ user: User) async throws {
-        try await withCheckedThrowingContinuation(resultType: Void.self) { (continuation: CheckedContinuation<Void, Error>) in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             user.delete { error in
                 if let error {
                     continuation.resume(throwing: error)
@@ -241,9 +241,9 @@ final class AuthManager: ObservableObject {
             errorMessage = "Firebase is not configured."
             return
         }
-        let credential = OAuthProvider.credential(withProviderID: "apple.com", idToken: idTokenString, accessToken: nil)
+        let credential = OAuthProvider.credential(withProviderID: "apple.com", idToken: idTokenString, rawNonce: nonce)
         do {
-            try await withCheckedThrowingContinuation(resultType: Void.self) { (continuation: CheckedContinuation<Void, Error>) in
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                 Auth.auth().signIn(with: credential) { _, error in
                     if let error {
                         continuation.resume(throwing: error)
