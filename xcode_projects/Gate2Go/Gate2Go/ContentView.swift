@@ -10,13 +10,20 @@ import SwiftData
 
 struct ContentView: View {
     @EnvironmentObject private var settings: Gate2GoSettings
+    @EnvironmentObject private var authManager: AuthManager
     
     var body: some View {
         Group {
-            if !settings.hasCompletedOnboarding {
-                OnboardingView()
+            if authManager.isLoading {
+                ProgressView("Loading")
+            } else if authManager.mode == .signedOut {
+                AuthView()
             } else {
-                MainTabView()
+                if !settings.hasCompletedOnboarding {
+                    OnboardingView()
+                } else {
+                    MainTabView()
+                }
             }
         }
     }
@@ -54,5 +61,6 @@ enum MainTab: Hashable {
 #Preview {
     ContentView()
         .environmentObject(Gate2GoSettings())
+        .environmentObject(AuthManager())
         .modelContainer(for: [ProjectModel.self, GateDesignModel.self], inMemory: true)
 }

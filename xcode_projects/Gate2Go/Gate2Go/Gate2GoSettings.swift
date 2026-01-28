@@ -50,8 +50,8 @@ class Gate2GoSettings: ObservableObject {
     }
     
     func isPremiumLocked(_ required: SubscriptionTier) -> Bool {
-        if subscriptionTier == .premium { return false }
-        return required == .premium
+        // Subscriptions are disabled in production for now; keep all features unlocked.
+        return false
     }
     
     func hasAccessToDesign() -> Bool {
