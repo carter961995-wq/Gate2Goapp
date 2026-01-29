@@ -6,38 +6,38 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
-import ProjectsListScreen from "@/screens/ProjectsListScreen";
+import CasesListScreen from "@/screens/ProjectsListScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { useTheme } from "@/hooks/useTheme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
-export type ProjectsStackParamList = {
-  ProjectsList: undefined;
+export type CasesStackParamList = {
+  CasesList: undefined;
 };
 
-const Stack = createNativeStackNavigator<ProjectsStackParamList>();
+const Stack = createNativeStackNavigator<CasesStackParamList>();
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-export default function ProjectsStackNavigator() {
+export default function CasesStackNavigator() {
   const screenOptions = useScreenOptions();
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
 
-  const handleNewProject = () => {
+  const handleNewCase = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate("NewProject");
+    navigation.navigate("NewCase");
   };
 
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
-        name="ProjectsList"
-        component={ProjectsListScreen}
+        name="CasesList"
+        component={CasesListScreen}
         options={{
-          headerTitle: "Projects",
+          headerTitle: "Recovery Cases",
           headerRight: () => (
-            <Pressable onPress={handleNewProject} hitSlop={8}>
+            <Pressable onPress={handleNewCase} hitSlop={8}>
               <Feather name="plus" size={24} color={theme.accent} />
             </Pressable>
           ),

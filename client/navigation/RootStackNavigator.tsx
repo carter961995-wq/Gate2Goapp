@@ -1,18 +1,22 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MainTabNavigator from "@/navigation/MainTabNavigator";
-import NewProjectScreen from "@/screens/NewProjectScreen";
-import ProjectWorkspaceScreen from "@/screens/ProjectWorkspaceScreen";
-import DesignGalleryScreen from "@/screens/DesignGalleryScreen";
-import DesignDetailScreen from "@/screens/DesignDetailScreen";
+import NewCaseScreen from "@/screens/NewProjectScreen";
+import CaseDetailScreen from "@/screens/ProjectWorkspaceScreen";
+import RecoveryPlanScreen from "@/screens/DesignGalleryScreen";
+import PlanStepScreen from "@/screens/DesignDetailScreen";
+import TrustCenterScreen from "@/screens/ModalScreen";
+import PaywallScreen from "@/screens/PaywallScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type RootStackParamList = {
   Main: undefined;
-  NewProject: undefined;
-  ProjectWorkspace: { projectId: string };
-  DesignGallery: { projectId: string };
-  DesignDetail: { projectId: string; designId: string };
+  NewCase: undefined;
+  CaseDetail: { caseId: string };
+  RecoveryPlan: { caseId: string };
+  PlanStep: { caseId: string; stepId: string };
+  TrustCenter: undefined;
+  Membership: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -28,31 +32,45 @@ export default function RootStackNavigator() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
-        name="NewProject"
-        component={NewProjectScreen}
+        name="NewCase"
+        component={NewCaseScreen}
         options={{
-          headerTitle: "New Project",
+          headerTitle: "New Recovery Case",
         }}
       />
       <Stack.Screen
-        name="ProjectWorkspace"
-        component={ProjectWorkspaceScreen}
+        name="CaseDetail"
+        component={CaseDetailScreen}
         options={{
-          headerTitle: "Project",
+          headerTitle: "Case Details",
         }}
       />
       <Stack.Screen
-        name="DesignGallery"
-        component={DesignGalleryScreen}
+        name="RecoveryPlan"
+        component={RecoveryPlanScreen}
         options={{
-          headerTitle: "Design Gallery",
+          headerTitle: "Recovery Plan",
         }}
       />
       <Stack.Screen
-        name="DesignDetail"
-        component={DesignDetailScreen}
+        name="PlanStep"
+        component={PlanStepScreen}
         options={{
-          headerTitle: "Design Detail",
+          headerTitle: "Plan Step",
+        }}
+      />
+      <Stack.Screen
+        name="TrustCenter"
+        component={TrustCenterScreen}
+        options={{
+          headerTitle: "Trust Center",
+        }}
+      />
+      <Stack.Screen
+        name="Membership"
+        component={PaywallScreen}
+        options={{
+          headerTitle: "Membership",
         }}
       />
     </Stack.Navigator>

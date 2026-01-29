@@ -7,10 +7,10 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 
 import { ThemedView } from "@/components/ThemedView";
-import { ProjectCard } from "@/components/ProjectCard";
+import { CaseCard } from "@/components/CaseCard";
 import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
-import { useApp } from "@/context/AppContext";
+import { useRecovery } from "@/context/RecoveryContext";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
@@ -21,30 +21,31 @@ export default function ProjectsListScreen() {
   const navigation = useNavigation<NavigationProp>();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
-  const { projects } = useApp();
+  const { cases } = useRecovery();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredProjects = projects.filter((p) => {
+  const filteredCases = cases.filter((c) => {
     const query = searchQuery.toLowerCase().trim();
     if (!query) return true;
     return (
-      p.name.toLowerCase().includes(query) ||
-      (p.clientName?.toLowerCase().includes(query) ?? false)
+      c.title.toLowerCase().includes(query) ||
+      c.deviceModel.toLowerCase().includes(query) ||
+      (c.ownerName?.toLowerCase().includes(query) ?? false)
     );
   });
 
-  const handleProjectPress = (projectId: string) => {
-    navigation.navigate("ProjectWorkspace", { projectId });
+  const handleCasePress = (caseId: string) => {
+    navigation.navigate("CaseDetail", { caseId });
   };
 
-  const handleNewProject = () => {
-    navigation.navigate("NewProject");
+  const handleNewCase = () => {
+    navigation.navigate("NewCase");
   };
 
   return (
     <ThemedView style={styles.container}>
       <FlatList
-        data={filteredProjects}
+        data={filteredCases}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[
           styles.listContent,
@@ -63,7 +64,7 @@ export default function ProjectsListScreen() {
             <Feather name="search" size={18} color={theme.textSecondary} />
             <TextInput
               style={[styles.searchInput, { color: theme.text }]}
-              placeholder="Search projects..."
+              placeholder="Search cases, device, owner..."
               placeholderTextColor={theme.textSecondary}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -71,19 +72,19 @@ export default function ProjectsListScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <ProjectCard
-            project={item}
-            onPress={() => handleProjectPress(item.id)}
+          <CaseCard
+            recoveryCase={item}
+            onPress={() => handleCasePress(item.id)}
           />
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           <EmptyState
-            icon="folder"
-            title="No Projects"
-            description="Tap 'New Project' to start designing gates for your clients."
-            actionLabel="New Project"
-            onAction={handleNewProject}
+            icon="inbox"
+            title="No Recovery Cases"
+            description="Start a new intake to build a consent-based recovery plan."
+            actionLabel="Start Recovery"
+            onAction={handleNewCase}
           />
         }
       />

@@ -1,53 +1,22 @@
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  StyleSheet,
-  View,
-  ScrollView,
-  Image,
-  Pressable,
-  Dimensions,
-} from "react-native";
+import React from "react";
+import { StyleSheet, View, ScrollView, Pressable } from "react-native";
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
-import { VisualCard } from "@/components/VisualCard";
-import { GateStyleCard } from "@/components/GateStyleCard";
-import { GateDesigner } from "@/components/GateDesigner";
 import { Button } from "@/components/Button";
-import { SectionHeader } from "@/components/SectionHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
-import { useApp } from "@/context/AppContext";
+import { useRecovery } from "@/context/RecoveryContext";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import {
-  GateStyle,
-  Material,
-  GateDesign,
-  GateDesignDraft,
-  AddonLineItem,
-  PicketOrientation,
-  FinialStyle,
-  ArchStyle,
-  GATE_STYLES,
-  GATE_STYLE_IMAGES,
-  MATERIALS,
-  PICKET_ORIENTATIONS,
-  FINIAL_STYLES,
-  ARCH_STYLES,
-} from "@/types/gate2go";
-import { AddOnPicker } from "@/components/AddOnPicker";
-import { calculateBasePrice, calculateTotalPrice, formatMoney } from "@/lib/pricing";
+import { RECOVERY_STATUS_LABELS, STEP_STATUS_LABELS } from "@/types/recovery";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
-const { width } = Dimensions.get("window");
-
-type RouteType = RouteProp<RootStackParamList, "ProjectWorkspace">;
+type RouteType = RouteProp<RootStackParamList, "CaseDetail">;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProjectWorkspaceScreen() {
@@ -56,526 +25,174 @@ export default function ProjectWorkspaceScreen() {
   const navigation = useNavigation<NavigationProp>();
   const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
-  const { projects, settings, addDesign, updateProject, isPremiumLocked } = useApp();
-  const { projectId } = route.params;
+  const { cases, getCaseSteps, updateStep } = useRecovery();
+  const { caseId } = route.params;
 
-  const project = projects.find((p) => p.id === projectId);
+  const recoveryCase = cases.find((c) => c.id === caseId);
+  const steps = getCaseSteps(caseId);
 
-  const [activeTab, setActiveTab] = useState<"design" | "pricing">("design");
-  const [draft, setDraft] = useState<GateDesignDraft>({
-    gateStyle: "single_swing",
-    material: "steel",
-    widthFeet: 12,
-    heightFeet: 6,
-    params: {},
-    addons: [],
-    basePriceCents: 0,
-    totalPriceCents: 0,
-    laborCents: settings.defaultLaborCents,
-    markupPercent: settings.defaultMarkupPercent,
-    taxPercent: settings.defaultTaxPercent,
-  });
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const updateDraft = useCallback((updates: Partial<GateDesignDraft>) => {
-    setDraft((prev) => {
-      const newDraft = { ...prev, ...updates };
-      if (
-        updates.gateStyle !== undefined ||
-        updates.material !== undefined ||
-        updates.widthFeet !== undefined ||
-        updates.heightFeet !== undefined
-      ) {
-        newDraft.basePriceCents = calculateBasePrice(
-          newDraft.gateStyle,
-          newDraft.material,
-          newDraft.widthFeet,
-          newDraft.heightFeet
-        );
-      }
-      newDraft.totalPriceCents = calculateTotalPrice(
-        newDraft.basePriceCents,
-        newDraft.addons,
-        newDraft.laborCents,
-        newDraft.markupPercent,
-        newDraft.taxPercent
-      );
-      return newDraft;
-    });
-  }, []);
-
-  useEffect(() => {
-    const basePrice = calculateBasePrice(
-      draft.gateStyle,
-      draft.material,
-      draft.widthFeet,
-      draft.heightFeet
-    );
-    updateDraft({ basePriceCents: basePrice });
-  }, []);
-
-  const handleGenerate = async () => {
-    if (isGenerating) return;
-    setIsGenerating(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    updateDraft({ generatedImageUri: project?.sitePhotoUri });
-    setIsGenerating(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
-
-  const handleSaveVersion = async () => {
-    if (!project) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    const now = new Date().toISOString();
-    const design: GateDesign = {
-      id: `design_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      projectId: project.id,
-      gateStyle: draft.gateStyle,
-      material: draft.material,
-      widthFeet: draft.widthFeet,
-      heightFeet: draft.heightFeet,
-      params: draft.params,
-      addons: draft.addons,
-      basePriceCents: draft.basePriceCents,
-      totalPriceCents: draft.totalPriceCents,
-      generatedImageUri: draft.generatedImageUri,
-      thumbnailUri: draft.generatedImageUri,
-      selectedByClient: false,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await addDesign(design);
-    await updateProject({ ...project, updatedAt: now });
-  };
-
-  const handleViewGallery = () => {
-    navigation.navigate("DesignGallery", { projectId });
-  };
-
-  if (!project) {
+  if (!recoveryCase) {
     return (
       <ThemedView style={styles.container}>
         <EmptyState
           icon="alert-circle"
-          title="Project not found"
-          description="This project may have been deleted."
+          title="Case not found"
+          description="This recovery case may have been removed."
         />
       </ThemedView>
     );
   }
 
-  const getStyleInfo = (style: GateStyle) =>
-    GATE_STYLES.find((s) => s.value === style);
-  const getMaterialInfo = (material: Material) =>
-    MATERIALS.find((m) => m.value === material);
+  const completedSteps = steps.filter((step) => step.status === "done").length;
+  const progressLabel =
+    steps.length > 0 ? `${completedSteps} of ${steps.length} steps` : "No plan yet";
+
+  const handleToggleStatus = (stepId: string) => {
+    const step = steps.find((s) => s.id === stepId);
+    if (!step) return;
+    const nextStatus =
+      step.status === "todo"
+        ? "in_progress"
+        : step.status === "in_progress"
+        ? "done"
+        : "todo";
+    updateStep({ ...step, status: nextStatus });
+  };
 
   return (
     <ThemedView style={styles.container}>
-      <View style={styles.tabBar}>
-        <Pressable
-          onPress={() => setActiveTab("design")}
-          style={[
-            styles.tab,
-            activeTab === "design" && { borderBottomColor: theme.accent },
-          ]}
-        >
-          <Feather
-            name="layers"
-            size={18}
-            color={activeTab === "design" ? theme.accent : theme.textSecondary}
-          />
-          <ThemedText
-            style={[
-              styles.tabText,
-              activeTab === "design" && { color: theme.accent },
-            ]}
-          >
-            Design
-          </ThemedText>
-        </Pressable>
-        <Pressable
-          onPress={() => setActiveTab("pricing")}
-          style={[
-            styles.tab,
-            activeTab === "pricing" && { borderBottomColor: theme.accent },
-          ]}
-        >
-          <Feather
-            name="dollar-sign"
-            size={18}
-            color={activeTab === "pricing" ? theme.accent : theme.textSecondary}
-          />
-          <ThemedText
-            style={[
-              styles.tabText,
-              activeTab === "pricing" && { color: theme.accent },
-            ]}
-          >
-            Options + Price
-          </ThemedText>
-        </Pressable>
-      </View>
-
       <ScrollView
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: headerHeight + 60,
+            paddingTop: headerHeight + Spacing.lg,
             paddingBottom: insets.bottom + Spacing.xl,
           },
         ]}
-        showsVerticalScrollIndicator={false}
       >
-        {activeTab === "design" ? (
-          <>
-            <View style={styles.previewSection}>
-              <SectionHeader title="Gate Preview" />
-              <GateDesigner
-                widthFeet={draft.widthFeet}
-                heightFeet={draft.heightFeet}
-                material={draft.material as any}
-                gateStyle={draft.gateStyle}
-                picketOrientation={(draft.params.picketOrientation as any) || "vertical"}
-                finialStyle={(draft.params.finialStyle as any) || "none"}
-                archStyle={(draft.params.archStyle as any) || "flat"}
-                archHeight={(draft.params.archHeight as number) || 20}
-                picketSpacing={4}
-                picketWidth={3}
-              />
-              <View style={styles.previewInfoRow}>
-                <ThemedText style={[styles.previewInfoText, { color: theme.textSecondary }]}>
-                  {getStyleInfo(draft.gateStyle)?.label} {" \u2022 "}
-                  {getMaterialInfo(draft.material)?.label}
-                </ThemedText>
-                <ThemedText style={[styles.previewInfoText, { color: theme.textSecondary }]}>
-                  {draft.widthFeet}' W x {draft.heightFeet}' H
-                </ThemedText>
-              </View>
+        <View style={[styles.card, { backgroundColor: theme.backgroundSecondary }]}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardTitle}>
+              <ThemedText style={styles.title}>{recoveryCase.deviceModel}</ThemedText>
+              <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
+                {recoveryCase.title}
+              </ThemedText>
             </View>
-
-            <View style={styles.section}>
-              <SectionHeader title="Gate Style" />
-              <View style={styles.gateStylesGrid}>
-                {GATE_STYLES.map((style) => (
-                  <View key={style.value} style={styles.gateStyleWrapper}>
-                    <GateStyleCard
-                      title={style.label}
-                      subtitle={style.tier === "premium" ? "Premium" : undefined}
-                      image={GATE_STYLE_IMAGES[style.value]}
-                      isSelected={draft.gateStyle === style.value}
-                      isLocked={isPremiumLocked(style.tier)}
-                      onPress={() => updateDraft({ gateStyle: style.value })}
-                    />
-                  </View>
-                ))}
-              </View>
+            <View
+              style={[
+                styles.statusBadge,
+                { borderColor: theme.accent },
+              ]}
+            >
+              <ThemedText style={[styles.statusText, { color: theme.accent }]}>
+                {RECOVERY_STATUS_LABELS[recoveryCase.status]}
+              </ThemedText>
             </View>
-
-            <View style={styles.section}>
-              <SectionHeader title="Material" />
-              <View style={styles.cardsGrid}>
-                {MATERIALS.map((material) => (
-                  <View key={material.value} style={styles.cardWrapper}>
-                    <VisualCard
-                      title={material.label}
-                      icon={material.icon}
-                      isSelected={draft.material === material.value}
-                      onPress={() => updateDraft({ material: material.value })}
-                    />
-                  </View>
-                ))}
-              </View>
+          </View>
+          <View style={styles.metaRow}>
+            <View style={styles.metaItem}>
+              <Feather name="user" size={14} color={theme.textSecondary} />
+              <ThemedText style={[styles.metaText, { color: theme.textSecondary }]}>
+                {recoveryCase.ownerName || "Owner not set"}
+              </ThemedText>
             </View>
+            <View style={styles.metaItem}>
+              <Feather name="flag" size={14} color={theme.textSecondary} />
+              <ThemedText style={[styles.metaText, { color: theme.textSecondary }]}>
+                {recoveryCase.priority.toUpperCase()}
+              </ThemedText>
+            </View>
+          </View>
+          <View style={styles.metaRow}>
+            <View style={styles.metaItem}>
+              <Feather name="tool" size={14} color={theme.textSecondary} />
+              <ThemedText style={[styles.metaText, { color: theme.textSecondary }]}>
+                Damage: {recoveryCase.damageType.replace("_", " ")}
+              </ThemedText>
+            </View>
+            <View style={styles.metaItem}>
+              <Feather name="cloud" size={14} color={theme.textSecondary} />
+              <ThemedText style={[styles.metaText, { color: theme.textSecondary }]}>
+                Backup: {recoveryCase.hasBackup ? "Yes" : "No"}
+              </ThemedText>
+            </View>
+          </View>
+        </View>
 
-            <View style={styles.section}>
-              <SectionHeader title="Size" />
-              <View
+        {recoveryCase.aiSummary ? (
+          <View style={[styles.summaryCard, { backgroundColor: theme.backgroundSecondary }]}>
+            <View style={styles.summaryHeader}>
+              <Feather name="cpu" size={18} color={theme.accent} />
+              <ThemedText style={styles.summaryTitle}>AI Concierge Summary</ThemedText>
+            </View>
+            <ThemedText style={[styles.summaryText, { color: theme.textSecondary }]}>
+              {recoveryCase.aiSummary}
+            </ThemedText>
+          </View>
+        ) : null}
+
+        <View style={styles.actions}>
+          <Button onPress={() => navigation.navigate("RecoveryPlan", { caseId })}>
+            View Recovery Plan
+          </Button>
+          <Button
+            onPress={() => navigation.navigate("TrustCenter")}
+            style={{ backgroundColor: theme.backgroundSecondary }}
+          >
+            Trust Center
+          </Button>
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <ThemedText style={styles.sectionTitle}>Plan progress</ThemedText>
+          <ThemedText style={[styles.sectionMeta, { color: theme.textSecondary }]}>
+            {progressLabel}
+          </ThemedText>
+        </View>
+
+        {steps.length === 0 ? (
+          <EmptyState
+            icon="list"
+            title="No plan steps yet"
+            description="Create a recovery plan to start tracking progress."
+          />
+        ) : (
+          <View style={styles.stepList}>
+            {steps.map((step) => (
+              <Pressable
+                key={step.id}
+                onPress={() =>
+                  navigation.navigate("PlanStep", { caseId, stepId: step.id })
+                }
                 style={[
-                  styles.sizeCard,
+                  styles.stepCard,
                   { backgroundColor: theme.backgroundSecondary },
                 ]}
               >
-                <View style={styles.sizeRow}>
-                  <ThemedText>Width (ft)</ThemedText>
-                  <View style={styles.stepper}>
-                    <Pressable
-                      onPress={() =>
-                        updateDraft({ widthFeet: Math.max(4, draft.widthFeet - 1) })
-                      }
-                      style={[
-                        styles.stepperButton,
-                        { backgroundColor: theme.backgroundTertiary },
-                      ]}
-                    >
-                      <Feather name="minus" size={18} color={theme.text} />
-                    </Pressable>
-                    <ThemedText style={styles.stepperValue}>
-                      {draft.widthFeet}
-                    </ThemedText>
-                    <Pressable
-                      onPress={() =>
-                        updateDraft({ widthFeet: Math.min(30, draft.widthFeet + 1) })
-                      }
-                      style={[
-                        styles.stepperButton,
-                        { backgroundColor: theme.backgroundTertiary },
-                      ]}
-                    >
-                      <Feather name="plus" size={18} color={theme.text} />
-                    </Pressable>
+                <View style={styles.stepHeader}>
+                  <View style={styles.stepTitleRow}>
+                    <Feather name="check-circle" size={16} color={theme.accent} />
+                    <ThemedText style={styles.stepTitle}>{step.title}</ThemedText>
                   </View>
-                </View>
-                <View style={styles.sizeRow}>
-                  <ThemedText>Height (ft)</ThemedText>
-                  <View style={styles.stepper}>
-                    <Pressable
-                      onPress={() =>
-                        updateDraft({ heightFeet: Math.max(3, draft.heightFeet - 1) })
-                      }
-                      style={[
-                        styles.stepperButton,
-                        { backgroundColor: theme.backgroundTertiary },
-                      ]}
-                    >
-                      <Feather name="minus" size={18} color={theme.text} />
-                    </Pressable>
-                    <ThemedText style={styles.stepperValue}>
-                      {draft.heightFeet}
-                    </ThemedText>
-                    <Pressable
-                      onPress={() =>
-                        updateDraft({ heightFeet: Math.min(12, draft.heightFeet + 1) })
-                      }
-                      style={[
-                        styles.stepperButton,
-                        { backgroundColor: theme.backgroundTertiary },
-                      ]}
-                    >
-                      <Feather name="plus" size={18} color={theme.text} />
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.actionsSection}>
-              <Button onPress={handleGenerate} disabled={isGenerating}>
-                <View style={styles.buttonContent}>
-                  {isGenerating ? (
-                    <ThemedText style={{ color: "#FFFFFF" }}>
-                      Generating...
-                    </ThemedText>
-                  ) : (
-                    <>
-                      <ThemedText style={{ color: "#FFFFFF" }}>
-                        Photoreal Generate
-                      </ThemedText>
-                      <Feather name="zap" size={18} color="#FFFFFF" />
-                    </>
-                  )}
-                </View>
-              </Button>
-              <Button
-                onPress={handleSaveVersion}
-                style={{ backgroundColor: theme.backgroundSecondary }}
-              >
-                <View style={styles.buttonContent}>
-                  <ThemedText>Save Version</ThemedText>
-                  <Feather name="save" size={18} color={theme.text} />
-                </View>
-              </Button>
-            </View>
-          </>
-        ) : (
-          <>
-            {draft.material === "wood" ? (
-              <View style={styles.section}>
-                <SectionHeader title="Picket Style" />
-                <View style={styles.cardsGrid}>
-                  {PICKET_ORIENTATIONS.map((orientation) => (
-                    <View key={orientation.value} style={styles.cardWrapper}>
-                      <VisualCard
-                        title={orientation.label}
-                        icon={orientation.value === "vertical" ? "align-center" : "align-justify"}
-                        isSelected={(draft.params.picketOrientation || "vertical") === orientation.value}
-                        onPress={() =>
-                          updateDraft({
-                            params: { ...draft.params, picketOrientation: orientation.value },
-                          })
-                        }
-                      />
-                    </View>
-                  ))}
-                </View>
-              </View>
-            ) : null}
-
-            {draft.material === "steel" ? (
-              <View style={styles.section}>
-                <SectionHeader title="Finial Style" />
-                <View style={styles.finialsGrid}>
-                  {FINIAL_STYLES.map((finial) => (
-                    <Pressable
-                      key={finial.value}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        updateDraft({
-                          params: { ...draft.params, finialStyle: finial.value },
-                        });
-                      }}
-                      style={[
-                        styles.finialChip,
-                        { backgroundColor: theme.backgroundSecondary },
-                        (draft.params.finialStyle || "none") === finial.value && {
-                          borderColor: theme.accent,
-                          borderWidth: 2,
-                        },
-                      ]}
-                    >
-                      <ThemedText
-                        style={[
-                          styles.finialLabel,
-                          (draft.params.finialStyle || "none") === finial.value && {
-                            color: theme.accent,
-                            fontWeight: "600",
-                          },
-                        ]}
-                      >
-                        {finial.label}
-                      </ThemedText>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            ) : null}
-
-            <View style={styles.section}>
-              <SectionHeader title="Top Edge Style" />
-              <View style={styles.archGrid}>
-                {ARCH_STYLES.filter((arch) => 
-                  arch.value !== "double_arch" || 
-                  draft.gateStyle === "double_swing" || 
-                  draft.gateStyle === "cantilever_slide"
-                ).map((arch) => (
                   <Pressable
-                    key={arch.value}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      updateDraft({
-                        params: { ...draft.params, archStyle: arch.value },
-                      });
-                    }}
+                    onPress={() => handleToggleStatus(step.id)}
                     style={[
-                      styles.archCard,
-                      { backgroundColor: theme.backgroundSecondary },
-                      (draft.params.archStyle || "flat") === arch.value && {
-                        borderColor: theme.accent,
-                        borderWidth: 2,
-                      },
+                      styles.stepStatus,
+                      { borderColor: theme.border },
                     ]}
                   >
-                    <ThemedText
-                      style={[
-                        styles.archLabel,
-                        (draft.params.archStyle || "flat") === arch.value && {
-                          color: theme.accent,
-                          fontWeight: "600",
-                        },
-                      ]}
-                    >
-                      {arch.label}
-                    </ThemedText>
-                    <ThemedText style={[styles.archDescription, { color: theme.textSecondary }]}>
-                      {arch.description}
+                    <ThemedText style={styles.stepStatusText}>
+                      {STEP_STATUS_LABELS[step.status]}
                     </ThemedText>
                   </Pressable>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.section}>
-              <SectionHeader title="Add-ons" />
-              <AddOnPicker
-                addons={draft.addons}
-                onAddonsChange={(addons) => updateDraft({ addons })}
-              />
-            </View>
-
-            <View style={styles.section}>
-              <SectionHeader title="Pricing" />
-              <View
-                style={[
-                  styles.pricingCard,
-                  { backgroundColor: theme.backgroundSecondary },
-                ]}
-              >
-                <View style={styles.pricingRow}>
-                  <ThemedText>Base price</ThemedText>
-                  <ThemedText style={styles.pricingValue}>
-                    {formatMoney(draft.basePriceCents)}
-                  </ThemedText>
                 </View>
-                {draft.addons.length > 0 ? (
-                  <View style={styles.pricingRow}>
-                    <ThemedText>Add-ons ({draft.addons.length})</ThemedText>
-                    <ThemedText style={styles.pricingValue}>
-                      {formatMoney(
-                        draft.addons.reduce(
-                          (sum, a) => sum + a.contractorCost.amountCents * a.quantity,
-                          0
-                        )
-                      )}
-                    </ThemedText>
-                  </View>
-                ) : null}
-                <View style={styles.pricingRow}>
-                  <ThemedText>Labor</ThemedText>
-                  <ThemedText style={styles.pricingValue}>
-                    {formatMoney(draft.laborCents)}
-                  </ThemedText>
-                </View>
-                <View style={styles.pricingRow}>
-                  <ThemedText>Markup</ThemedText>
-                  <ThemedText style={styles.pricingValue}>
-                    {draft.markupPercent}%
-                  </ThemedText>
-                </View>
-                <View style={styles.pricingRow}>
-                  <ThemedText>Tax</ThemedText>
-                  <ThemedText style={styles.pricingValue}>
-                    {draft.taxPercent}%
-                  </ThemedText>
-                </View>
-                <View style={[styles.pricingRow, styles.totalRow]}>
-                  <ThemedText style={styles.totalLabel}>Total</ThemedText>
-                  <ThemedText style={[styles.totalValue, { color: theme.accent }]}>
-                    {formatMoney(draft.totalPriceCents)}
-                  </ThemedText>
-                </View>
-              </View>
-            </View>
-
-            <Button
-              onPress={() => {}}
-              style={{ backgroundColor: theme.backgroundSecondary }}
-            >
-              <View style={styles.buttonContent}>
-                <ThemedText>Export Proposal</ThemedText>
-                <Feather name="share" size={18} color={theme.text} />
-              </View>
-            </Button>
-          </>
+                <ThemedText style={[styles.stepDescription, { color: theme.textSecondary }]}>
+                  {step.description}
+                </ThemedText>
+              </Pressable>
+            ))}
+          </View>
         )}
-
-        <Pressable onPress={handleViewGallery} style={styles.galleryLink}>
-          <Feather name="grid" size={18} color={theme.accent} />
-          <ThemedText style={[styles.galleryLinkText, { color: theme.accent }]}>
-            View Design Gallery
-          </ThemedText>
-        </Pressable>
       </ScrollView>
     </ThemedView>
   );
@@ -585,162 +202,123 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  tabBar: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    zIndex: 10,
-    paddingTop: 100,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.xs,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-  },
-  tabText: {
-    fontSize: 15,
-    fontWeight: "500",
-  },
   content: {
     paddingHorizontal: Spacing.lg,
-  },
-  previewSection: {
-    marginBottom: Spacing.xl,
-  },
-  previewInfoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: Spacing.sm,
-  },
-  previewInfoText: {
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  section: {
-    marginBottom: Spacing.xl,
-  },
-  cardsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.sm,
-  },
-  cardWrapper: {
-    width: (width - Spacing.lg * 2 - Spacing.sm) / 2,
-  },
-  sizeCard: {
-    borderRadius: BorderRadius.md,
-    padding: Spacing.lg,
     gap: Spacing.lg,
   },
-  sizeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  stepper: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
-  },
-  stepperButton: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.xs,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepperValue: {
-    fontSize: 18,
-    fontWeight: "600",
-    minWidth: 40,
-    textAlign: "center",
-  },
-  actionsSection: {
-    gap: Spacing.md,
-    marginBottom: Spacing.xl,
-  },
-  buttonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-  },
-  finialsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.sm,
-  },
-  finialChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-  },
-  finialLabel: {
-    fontSize: 14,
-  },
-  archGrid: {
-    gap: Spacing.sm,
-  },
-  archCard: {
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-  },
-  archLabel: {
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  archDescription: {
-    fontSize: 13,
-    marginTop: Spacing.xs,
-  },
-  pricingCard: {
-    borderRadius: BorderRadius.md,
+  card: {
+    borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     gap: Spacing.md,
   },
-  pricingRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  pricingValue: {
-    fontWeight: "500",
-  },
-  totalRow: {
-    borderTopWidth: 1,
-    borderTopColor: "rgba(0,0,0,0.1)",
-    paddingTop: Spacing.md,
-    marginTop: Spacing.xs,
-  },
-  totalLabel: {
-    fontSize: 17,
-    fontWeight: "600",
-  },
-  totalValue: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  galleryLink: {
+  cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.sm,
-    paddingVertical: Spacing.lg,
-    marginTop: Spacing.md,
-  },
-  galleryLinkText: {
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  gateStylesGrid: {
+    justifyContent: "space-between",
     gap: Spacing.md,
   },
-  gateStyleWrapper: {
-    width: "100%",
+  cardTitle: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  subtitle: {
+    fontSize: 13,
+  },
+  statusBadge: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  metaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: Spacing.md,
+  },
+  metaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  metaText: {
+    fontSize: 12,
+  },
+  summaryCard: {
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  summaryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  summaryTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  summaryText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  actions: {
+    gap: Spacing.md,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  sectionMeta: {
+    fontSize: 12,
+  },
+  stepList: {
+    gap: Spacing.md,
+  },
+  stepCard: {
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  stepHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  stepTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    flex: 1,
+  },
+  stepStatus: {
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+  },
+  stepStatusText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  stepDescription: {
+    fontSize: 12,
+    lineHeight: 18,
   },
 });

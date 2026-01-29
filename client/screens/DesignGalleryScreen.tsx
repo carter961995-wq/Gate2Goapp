@@ -1,23 +1,21 @@
 import React from "react";
-import { StyleSheet, View, FlatList, Image, Pressable } from "react-native";
+import { StyleSheet, View, FlatList, Pressable } from "react-native";
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
-import { useApp } from "@/context/AppContext";
+import { useRecovery } from "@/context/RecoveryContext";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { GateDesign, GATE_STYLES, MATERIALS } from "@/types/gate2go";
-import { formatMoney } from "@/lib/pricing";
+import { STEP_STATUS_LABELS } from "@/types/recovery";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
-type RouteType = RouteProp<RootStackParamList, "DesignGallery">;
+type RouteType = RouteProp<RootStackParamList, "RecoveryPlan">;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function DesignGalleryScreen() {
@@ -26,65 +24,24 @@ export default function DesignGalleryScreen() {
   const navigation = useNavigation<NavigationProp>();
   const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
-  const { getProjectDesigns } = useApp();
-  const { projectId } = route.params;
+  const { getCaseSteps, cases } = useRecovery();
+  const { caseId } = route.params;
 
-  const designs = getProjectDesigns(projectId);
+  const recoveryCase = cases.find((c) => c.id === caseId);
+  const steps = getCaseSteps(caseId);
 
-  const handleDesignPress = (design: GateDesign) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate("DesignDetail", {
-      projectId,
-      designId: design.id,
+  const handleStepPress = (stepId: string) => {
+    navigation.navigate("PlanStep", {
+      caseId,
+      stepId,
     });
   };
-
-  const getStyleLabel = (style: string) =>
-    GATE_STYLES.find((s) => s.value === style)?.label ?? style;
-
-  const getMaterialLabel = (material: string) =>
-    MATERIALS.find((m) => m.value === material)?.label ?? material;
-
-  const renderDesignCard = ({ item }: { item: GateDesign }) => (
-    <Pressable
-      onPress={() => handleDesignPress(item)}
-      style={[styles.card, { backgroundColor: theme.backgroundDefault }]}
-    >
-      {item.thumbnailUri ? (
-        <Image source={{ uri: item.thumbnailUri }} style={styles.thumbnail} />
-      ) : (
-        <View
-          style={[
-            styles.thumbnail,
-            styles.placeholderThumbnail,
-            { backgroundColor: theme.backgroundSecondary },
-          ]}
-        >
-          <Feather name="image" size={24} color={theme.textSecondary} />
-        </View>
-      )}
-      {item.selectedByClient ? (
-        <View style={[styles.selectedBadge, { backgroundColor: theme.success }]}>
-          <Feather name="check" size={12} color="#FFFFFF" />
-        </View>
-      ) : null}
-      <View style={styles.cardContent}>
-        <ThemedText style={styles.cardTitle} numberOfLines={2}>
-          {getStyleLabel(item.gateStyle)} {"\u2022"} {getMaterialLabel(item.material)}
-        </ThemedText>
-        <ThemedText style={[styles.cardPrice, { color: theme.textSecondary }]}>
-          Total: {formatMoney(item.totalPriceCents)}
-        </ThemedText>
-      </View>
-    </Pressable>
-  );
 
   return (
     <ThemedView style={styles.container}>
       <FlatList
-        data={designs}
+        data={steps}
         keyExtractor={(item) => item.id}
-        numColumns={2}
         contentContainerStyle={[
           styles.listContent,
           {
@@ -92,13 +49,43 @@ export default function DesignGalleryScreen() {
             paddingBottom: insets.bottom + Spacing.xl,
           },
         ]}
-        columnWrapperStyle={styles.row}
-        renderItem={renderDesignCard}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <ThemedText style={styles.title}>
+              {recoveryCase?.deviceModel || "Recovery Plan"}
+            </ThemedText>
+            <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
+              Official, consent-based steps tailored to this case.
+            </ThemedText>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <Pressable
+            onPress={() => handleStepPress(item.id)}
+            style={[styles.card, { backgroundColor: theme.backgroundSecondary }]}
+          >
+            <View style={styles.cardHeader}>
+              <View style={styles.cardTitleRow}>
+                <Feather name="check-circle" size={18} color={theme.accent} />
+                <ThemedText style={styles.cardTitle}>{item.title}</ThemedText>
+              </View>
+              <View style={[styles.statusPill, { borderColor: theme.border }]}>
+                <ThemedText style={styles.statusText}>
+                  {STEP_STATUS_LABELS[item.status]}
+                </ThemedText>
+              </View>
+            </View>
+            <ThemedText style={[styles.cardDescription, { color: theme.textSecondary }]}>
+              {item.description}
+            </ThemedText>
+          </Pressable>
+        )}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           <EmptyState
-            icon="grid"
-            title="No Designs Yet"
-            description="Save a version from the Design tab to see it here."
+            icon="list"
+            title="No recovery plan yet"
+            description="Complete intake to generate a recovery plan."
           />
         }
       />
@@ -113,43 +100,56 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: Spacing.lg,
     flexGrow: 1,
+    gap: Spacing.md,
   },
-  row: {
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+  header: {
+    gap: Spacing.xs,
+    marginBottom: Spacing.md,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  subtitle: {
+    fontSize: 13,
   },
   card: {
-    flex: 1,
     borderRadius: BorderRadius.md,
-    overflow: "hidden",
-  },
-  thumbnail: {
-    width: "100%",
-    height: 120,
-  },
-  placeholderThumbnail: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  selectedBadge: {
-    position: "absolute",
-    top: Spacing.sm,
-    right: Spacing.sm,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardContent: {
     padding: Spacing.md,
-    gap: Spacing.xs,
+    gap: Spacing.sm,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.sm,
+  },
+  cardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    flex: 1,
   },
   cardTitle: {
     fontSize: 14,
     fontWeight: "600",
+    flex: 1,
   },
-  cardPrice: {
+  cardDescription: {
     fontSize: 12,
+    lineHeight: 18,
+  },
+  statusPill: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  separator: {
+    height: Spacing.sm,
   },
 });
