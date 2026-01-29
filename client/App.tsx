@@ -11,12 +11,13 @@ import { queryClient } from "@/lib/query-client";
 
 import RootStackNavigator from "@/navigation/RootStackNavigator";
 import OnboardingScreen from "@/screens/OnboardingScreen";
+import PaywallScreen from "@/screens/PaywallScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { RecoveryProvider, useRecovery } from "@/context/RecoveryContext";
+import { AppProvider, useApp } from "@/context/AppContext";
 import { useTheme } from "@/hooks/useTheme";
 
 function AppContent() {
-  const { settings, isLoading } = useRecovery();
+  const { settings, isLoading } = useApp();
   const { theme } = useTheme();
 
   if (isLoading) {
@@ -29,6 +30,11 @@ function AppContent() {
 
   if (!settings.hasCompletedOnboarding) {
     return <OnboardingScreen />;
+  }
+
+  const hasAccess = settings.hasActiveSubscription || (settings.designCredits && settings.designCredits > 0);
+  if (!hasAccess) {
+    return <PaywallScreen />;
   }
 
   return (
@@ -45,9 +51,9 @@ export default function App() {
         <SafeAreaProvider>
           <GestureHandlerRootView style={styles.root}>
             <KeyboardProvider>
-              <RecoveryProvider>
+              <AppProvider>
                 <AppContent />
-              </RecoveryProvider>
+              </AppProvider>
               <StatusBar style="auto" />
             </KeyboardProvider>
           </GestureHandlerRootView>

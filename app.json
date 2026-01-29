@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "SafeRestore Concierge",
-    "slug": "saferestore",
+    "name": "Gate2Go - Fence & Gate Design",
+    "slug": "gate2go",
     "version": "1.0.0",
-    "description": "Consent-based iOS data recovery concierge. Get AI-guided recovery plans, official account recovery steps, and trusted repair routing without bypassing device security.",
+    "description": "Professional fence and gate design tool for contractors. Create accurate quotes, design custom gates, and generate branded proposals. Features gate layout planner, fence estimator, material calculator, and pricing tools.",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "saferestore",
+    "scheme": "gate2go",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.saferestore.app",
+      "bundleIdentifier": "com.gate2go.app",
       "infoPlist": {
-        "CFBundleDisplayName": "SafeRestore"
+        "CFBundleDisplayName": "Gate2Go"
       }
     },
     "android": {
@@ -25,14 +25,14 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.saferestore.app"
+      "package": "com.gate2go.app"
     },
     "web": {
       "output": "single",
       "favicon": "./assets/images/favicon.png",
-      "name": "SafeRestore Concierge",
-      "shortName": "SafeRestore",
-      "description": "Consent-based iOS data recovery concierge with AI guidance and trusted service routing.",
+      "name": "Gate2Go - Fence & Gate Design Tool",
+      "shortName": "Gate2Go",
+      "description": "Professional fence and gate design tool for contractors. Create quotes, design gates, generate proposals.",
       "themeColor": "#2563EB",
       "backgroundColor": "#ffffff"
     },

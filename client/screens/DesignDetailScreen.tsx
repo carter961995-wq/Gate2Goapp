@@ -1,112 +1,195 @@
-import React from "react";
-import { StyleSheet, View, Pressable, Linking, Alert } from "react-native";
+import React, { useState } from "react";
+import { StyleSheet, View, ScrollView, Image, Switch, Alert } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { Button } from "@/components/Button";
+import { SectionHeader } from "@/components/SectionHeader";
+import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
-import { useRecovery } from "@/context/RecoveryContext";
+import { useApp } from "@/context/AppContext";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { STEP_STATUS_LABELS } from "@/types/recovery";
+import { GATE_STYLES, MATERIALS } from "@/types/gate2go";
+import { formatMoney } from "@/lib/pricing";
+import { generateAndShareProposal } from "@/lib/proposal";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
-type RouteType = RouteProp<RootStackParamList, "PlanStep">;
+type RouteType = RouteProp<RootStackParamList, "DesignDetail">;
 
 export default function DesignDetailScreen() {
   const { theme } = useTheme();
   const route = useRoute<RouteType>();
   const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
-  const { steps, updateStep } = useRecovery();
-  const { stepId } = route.params;
+  const { designs, updateDesign, addDesign, projects, settings } = useApp();
+  const { projectId, designId } = route.params;
 
-  const step = steps.find((s) => s.id === stepId);
+  const design = designs.find((d) => d.id === designId);
+  const project = projects.find((p) => p.id === projectId);
 
-  if (!step) {
+  const [showOriginal, setShowOriginal] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  if (!design) {
     return (
       <ThemedView style={styles.container}>
-        <ThemedText style={styles.missing}>Step not found.</ThemedText>
+        <EmptyState
+          icon="alert-circle"
+          title="Design not found"
+          description="This design may have been deleted."
+        />
       </ThemedView>
     );
   }
 
-  const handleOpenLink = async () => {
-    if (!step.actionUrl) return;
+  const getStyleLabel = (style: string) =>
+    GATE_STYLES.find((s) => s.value === style)?.label ?? style;
+
+  const getMaterialLabel = (material: string) =>
+    MATERIALS.find((m) => m.value === material)?.label ?? material;
+
+  const handleToggleSelected = async (value: boolean) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await updateDesign({
+      ...design,
+      selectedByClient: value,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const handleDuplicate = async () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const now = new Date().toISOString();
+    const copy = {
+      ...design,
+      id: `design_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      selectedByClient: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await addDesign(copy);
+  };
+
+  const handleExportProposal = async () => {
+    if (!design || !project || isExporting) return;
+    
+    setIsExporting(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
     try {
-      await Linking.openURL(step.actionUrl);
-    } catch {
-      Alert.alert("Unable to open link", "Please try again later.");
+      await generateAndShareProposal({
+        design,
+        project,
+        settings,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      Alert.alert("Export Failed", "Unable to generate the proposal. Please try again.");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsExporting(false);
     }
   };
 
-  const handleAdvanceStatus = () => {
-    const nextStatus =
-      step.status === "todo"
-        ? "in_progress"
-        : step.status === "in_progress"
-        ? "done"
-        : "todo";
-    updateStep({ ...step, status: nextStatus });
-  };
+  const displayImageUri = showOriginal
+    ? project?.sitePhotoUri
+    : design.generatedImageUri;
 
   return (
     <ThemedView style={styles.container}>
-      <View
-        style={[
+      <ScrollView
+        contentContainerStyle={[
           styles.content,
           {
             paddingTop: headerHeight + Spacing.lg,
             paddingBottom: insets.bottom + Spacing.xl,
           },
         ]}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.card, { backgroundColor: theme.backgroundSecondary }]}>
-          <View style={styles.cardHeader}>
-            <Feather name="check-circle" size={18} color={theme.accent} />
-            <ThemedText style={styles.title}>{step.title}</ThemedText>
-          </View>
-          <ThemedText style={[styles.description, { color: theme.textSecondary }]}>
-            {step.description}
-          </ThemedText>
-          <View style={styles.metaRow}>
-            <View style={[styles.statusPill, { borderColor: theme.border }]}>
-              <ThemedText style={styles.statusText}>
-                {STEP_STATUS_LABELS[step.status]}
+        <View style={styles.section}>
+          <View style={styles.imageHeader}>
+            <SectionHeader title="Render" />
+            <View style={styles.toggleRow}>
+              <ThemedText style={[styles.toggleLabel, { color: theme.textSecondary }]}>
+                Original
               </ThemedText>
-            </View>
-            <View style={styles.categoryPill}>
-              <ThemedText style={[styles.categoryText, { color: theme.textSecondary }]}>
-                {step.category.replace("_", " ")}
-              </ThemedText>
+              <Switch
+                value={showOriginal}
+                onValueChange={setShowOriginal}
+                trackColor={{ false: theme.backgroundTertiary, true: theme.accent }}
+              />
             </View>
           </View>
+          {displayImageUri ? (
+            <Image source={{ uri: displayImageUri }} style={styles.image} />
+          ) : (
+            <View
+              style={[
+                styles.imagePlaceholder,
+                { backgroundColor: theme.backgroundSecondary },
+              ]}
+            >
+              <ThemedText style={{ color: theme.textSecondary }}>
+                {showOriginal ? "Original photo shown in Workspace" : "No generated render yet"}
+              </ThemedText>
+            </View>
+          )}
         </View>
 
-        {step.actionUrl ? (
-          <Pressable
-            onPress={handleOpenLink}
-            style={[styles.linkCard, { backgroundColor: theme.backgroundSecondary }]}
+        <View
+          style={[
+            styles.selectionCard,
+            { backgroundColor: theme.backgroundSecondary },
+          ]}
+        >
+          <ThemedText>Selected by client</ThemedText>
+          <Switch
+            value={design.selectedByClient}
+            onValueChange={handleToggleSelected}
+            trackColor={{ false: theme.backgroundTertiary, true: theme.success }}
+          />
+        </View>
+
+        <View
+          style={[styles.detailsCard, { backgroundColor: theme.backgroundSecondary }]}
+        >
+          <ThemedText style={styles.detailsTitle}>
+            {getStyleLabel(design.gateStyle)} {"\u2022"} {getMaterialLabel(design.material)}
+          </ThemedText>
+          <ThemedText style={[styles.detailsSize, { color: theme.textSecondary }]}>
+            Size: {design.widthFeet}' W x {design.heightFeet}' H
+          </ThemedText>
+          <ThemedText style={[styles.detailsTotal, { color: theme.accent }]}>
+            Total: {formatMoney(design.totalPriceCents)}
+          </ThemedText>
+        </View>
+
+        <View style={styles.actionsRow}>
+          <Button
+            onPress={handleDuplicate}
+            style={[styles.actionButton, { backgroundColor: theme.backgroundSecondary }]}
           >
-            <Feather name="external-link" size={18} color={theme.accent} />
-            <View style={styles.linkText}>
-              <ThemedText style={styles.linkTitle}>Open official guidance</ThemedText>
-              <ThemedText style={[styles.linkSubtitle, { color: theme.textSecondary }]}>
-                {step.actionUrl}
+            <View style={styles.buttonContent}>
+              <Feather name="copy" size={18} color={theme.text} />
+              <ThemedText>Duplicate</ThemedText>
+            </View>
+          </Button>
+          <Button onPress={handleExportProposal} style={styles.actionButton} disabled={isExporting}>
+            <View style={styles.buttonContent}>
+              <Feather name="share" size={18} color="#FFFFFF" />
+              <ThemedText style={{ color: "#FFFFFF" }}>
+                {isExporting ? "Generating..." : "Export Proposal"}
               </ThemedText>
             </View>
-          </Pressable>
-        ) : null}
-
-        <Button onPress={handleAdvanceStatus}>Update Step Status</Button>
-        <ThemedText style={[styles.disclaimer, { color: theme.textSecondary }]}>
-          SafeRestore only uses official recovery methods. We never bypass device
-          security or access data without explicit owner consent.
-        </ThemedText>
-      </View>
+          </Button>
+        </View>
+      </ScrollView>
     </ThemedView>
   );
 }
@@ -117,76 +200,72 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: Spacing.lg,
-    gap: Spacing.lg,
   },
-  card: {
+  section: {
+    marginBottom: Spacing.xl,
+  },
+  imageHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.sm,
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  toggleLabel: {
+    fontSize: 14,
+  },
+  image: {
+    width: "100%",
+    height: 250,
+    borderRadius: BorderRadius.md,
+  },
+  imagePlaceholder: {
+    width: "100%",
+    height: 250,
+    borderRadius: BorderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  selectionCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  detailsCard: {
     borderRadius: BorderRadius.md,
     padding: Spacing.lg,
     gap: Spacing.sm,
+    marginBottom: Spacing.xl,
   },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-  },
-  title: {
+  detailsTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    flex: 1,
-  },
-  description: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-  },
-  statusPill: {
-    borderWidth: 1,
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-  },
-  statusText: {
-    fontSize: 11,
     fontWeight: "600",
   },
-  categoryPill: {
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    backgroundColor: "rgba(0,0,0,0.06)",
+  detailsSize: {
+    fontSize: 15,
   },
-  categoryText: {
-    fontSize: 11,
+  detailsTotal: {
+    fontSize: 17,
     fontWeight: "600",
+    marginTop: Spacing.xs,
   },
-  linkCard: {
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
+  actionsRow: {
     flexDirection: "row",
-    alignItems: "center",
     gap: Spacing.md,
   },
-  linkText: {
+  actionButton: {
     flex: 1,
   },
-  linkTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  linkSubtitle: {
-    fontSize: 11,
-  },
-  disclaimer: {
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: "center",
-  },
-  missing: {
-    marginTop: Spacing.xl,
-    textAlign: "center",
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
   },
 });

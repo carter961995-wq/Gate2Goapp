@@ -8,35 +8,35 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
-import { useRecovery } from "@/context/RecoveryContext";
+import { useApp } from "@/context/AppContext";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
 const { width } = Dimensions.get("window");
 
 const SLIDES = [
   {
-    icon: "shield",
-    title: "Consent-first recovery",
+    icon: "camera",
+    title: "Design gates on-site",
     description:
-      "Every recovery step is owner-authorized and follows official platform policies.",
+      "Take a jobsite photo, choose a style and material, then customize with options and pricing.",
   },
   {
-    icon: "cpu",
-    title: "AI recovery concierge",
+    icon: "dollar-sign",
+    title: "Pricing & Proposals",
     description:
-      "Get a personalized recovery plan based on your device, damage, and account access.",
+      "Add options like keypads, latches, drop rods, and openers. Generate professional proposals instantly.",
   },
   {
-    icon: "check-circle",
-    title: "Trusted service network",
+    icon: "folder",
+    title: "Manage Projects",
     description:
-      "We route you to authorized providers and track every step with secure updates.",
+      "Save design versions, track client preferences, and keep all your gate projects organized.",
   },
 ];
 
 export default function OnboardingScreen() {
   const { theme } = useTheme();
-  const { updateSettings } = useRecovery();
+  const { updateSettings } = useApp();
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const handleNext = () => {
@@ -44,7 +44,7 @@ export default function OnboardingScreen() {
     if (currentSlide < SLIDES.length - 1) {
       setCurrentSlide((prev) => prev + 1);
     } else {
-      updateSettings({ hasCompletedOnboarding: true, hasAcceptedTerms: true });
+      updateSettings({ hasCompletedOnboarding: true });
     }
   };
 
