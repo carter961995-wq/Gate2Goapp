@@ -32,6 +32,7 @@ interface AppContextType {
 }
 
 const defaultSettings: AppSettings = {
+  hasCompletedAuth: false,
   hasCompletedOnboarding: false,
   hasActiveSubscription: false,
   subscriptionTier: "essential",
@@ -42,6 +43,9 @@ const defaultSettings: AppSettings = {
   brandingPhone: "",
   brandingEmail: "",
   brandingLogoUri: "",
+  appleUserId: "",
+  appleEmail: "",
+  appleFullName: "",
   designCredits: 0,
 };
 

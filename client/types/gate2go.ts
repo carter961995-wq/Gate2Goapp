@@ -86,6 +86,7 @@ export interface GateDesignDraft {
 }
 
 export interface AppSettings {
+  hasCompletedAuth: boolean;
   hasCompletedOnboarding: boolean;
   hasActiveSubscription: boolean;
   subscriptionTier: SubscriptionTier;
@@ -96,6 +97,9 @@ export interface AppSettings {
   brandingPhone: string;
   brandingEmail: string;
   brandingLogoUri: string;
+  appleUserId: string;
+  appleEmail: string;
+  appleFullName: string;
   designCredits: number;
 }
 

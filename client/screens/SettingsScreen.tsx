@@ -1,10 +1,11 @@
-import React, { useState } from "react";
-import { StyleSheet, View, Alert, Pressable, Image, ActivityIndicator } from "react-native";
+import React, { useEffect, useState } from "react";
+import { StyleSheet, View, Alert, Pressable, Image, ActivityIndicator, Platform } from "react-native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import * as AppleAuthentication from "expo-apple-authentication";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -25,6 +26,33 @@ export default function SettingsScreen() {
   const { settings, updateSettings, refreshData, subscriptionStatus, refreshSubscriptionStatus } = useApp();
   const [isRestoring, setIsRestoring] = useState(false);
   const [isLoadingCustomerCenter, setIsLoadingCustomerCenter] = useState(false);
+  const [isAppleAvailable, setIsAppleAvailable] = useState(Platform.OS === "ios");
+  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (Platform.OS !== "ios") {
+      setIsAppleAvailable(false);
+      return undefined;
+    }
+
+    AppleAuthentication.isAvailableAsync()
+      .then((available) => {
+        if (isMounted) {
+          setIsAppleAvailable(available);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setIsAppleAvailable(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleRestorePurchases = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -105,6 +133,50 @@ export default function SettingsScreen() {
     updateSettings({ hasCompletedOnboarding: false });
   };
 
+  const handleAppleSignIn = async () => {
+    if (isSigningIn) return;
+    if (!isAppleAvailable) {
+      Alert.alert("Unavailable", "Sign in with Apple is only available on iOS devices.");
+      return;
+    }
+
+    setIsSigningIn(true);
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      const fullName = [credential.fullName?.givenName, credential.fullName?.familyName]
+        .filter(Boolean)
+        .join(" ");
+
+      await updateSettings({
+        hasCompletedAuth: true,
+        appleUserId: credential.user,
+        appleEmail: credential.email ?? "",
+        appleFullName: fullName,
+      });
+    } catch (error: any) {
+      if (error?.code !== "ERR_CANCELED") {
+        Alert.alert("Sign in failed", "Unable to sign in with Apple. Please try again.");
+      }
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await updateSettings({
+      appleUserId: "",
+      appleEmail: "",
+      appleFullName: "",
+    });
+  };
+
   const handleFullReset = () => {
     Alert.alert(
       "Reset Entire App",
@@ -161,6 +233,68 @@ export default function SettingsScreen() {
           },
         ]}
       >
+        <View style={styles.section}>
+          <SectionHeader title="Account" />
+          <View
+            style={[styles.card, { backgroundColor: theme.backgroundSecondary }]}
+          >
+            <View style={styles.row}>
+              <ThemedText>Status</ThemedText>
+              <ThemedText
+                style={{
+                  color: settings.appleUserId ? theme.success : theme.textSecondary,
+                  fontWeight: "500",
+                }}
+              >
+                {settings.appleUserId ? "Signed in" : "Not signed in"}
+              </ThemedText>
+            </View>
+            {settings.appleFullName ? (
+              <View style={styles.row}>
+                <ThemedText>Name</ThemedText>
+                <ThemedText style={{ color: theme.textSecondary }}>
+                  {settings.appleFullName}
+                </ThemedText>
+              </View>
+            ) : null}
+            {settings.appleEmail ? (
+              <View style={styles.row}>
+                <ThemedText>Email</ThemedText>
+                <ThemedText style={{ color: theme.textSecondary }}>
+                  {settings.appleEmail}
+                </ThemedText>
+              </View>
+            ) : null}
+            {settings.appleUserId ? (
+              <Pressable
+                onPress={handleSignOut}
+                style={[styles.button, { backgroundColor: theme.backgroundTertiary }]}
+              >
+                <Feather name="log-out" size={18} color={theme.textSecondary} />
+                <ThemedText style={styles.buttonText}>Sign Out</ThemedText>
+              </Pressable>
+            ) : Platform.OS === "ios" ? (
+              isAppleAvailable ? (
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                  cornerRadius={BorderRadius.sm}
+                  style={styles.appleButton}
+                  onPress={isSigningIn ? undefined : handleAppleSignIn}
+                />
+              ) : (
+                <ThemedText style={{ color: theme.textSecondary }}>
+                  Sign in with Apple is not available on this device.
+                </ThemedText>
+              )
+            ) : (
+              <ThemedText style={{ color: theme.textSecondary }}>
+                Sign in with Apple is only available on iOS devices.
+              </ThemedText>
+            )}
+          </View>
+        </View>
+
         <View style={styles.section}>
           <SectionHeader title="Subscription" />
           <View
@@ -460,5 +594,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 2,
     elevation: 2,
+  },
+  appleButton: {
+    width: "100%",
+    height: Spacing.buttonHeight,
   },
 });

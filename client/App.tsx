@@ -10,6 +10,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
 
 import RootStackNavigator from "@/navigation/RootStackNavigator";
+import AuthScreen from "@/screens/AuthScreen";
 import OnboardingScreen from "@/screens/OnboardingScreen";
 import PaywallScreen from "@/screens/PaywallScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -26,6 +27,10 @@ function AppContent() {
         <ActivityIndicator size="large" color={theme.accent} />
       </View>
     );
+  }
+
+  if (!settings.hasCompletedAuth) {
+    return <AuthScreen />;
   }
 
   if (!settings.hasCompletedOnboarding) {
