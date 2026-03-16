@@ -8,7 +8,7 @@
 import Foundation
 
 struct PricingCalculator {
-    static func defaultBasePriceCents(style: GateStyle, material: Material, widthFeet: Double, heightFeet: Double) -> Int {
+    static func defaultBasePriceCents(style: GateStyle, material: Material, widthFeet: Double, heightFeet: Double, regionMultiplier: Double = 1.0) -> Int {
         let basePerSqFt: Double
         switch material {
         case .wood: basePerSqFt = 45
@@ -28,7 +28,7 @@ struct PricingCalculator {
         }
         
         let sqFt = widthFeet * heightFeet
-        let dollars = sqFt * basePerSqFt * styleMultiplier
+        let dollars = sqFt * basePerSqFt * styleMultiplier * regionMultiplier
         return Int(dollars * 100)
     }
     

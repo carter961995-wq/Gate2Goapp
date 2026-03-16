@@ -5,6 +5,9 @@
 
 import SwiftUI
 import SwiftData
+import UIKit
+import Foundation
+import PhotosUI
 
 struct ProjectWorkspaceView: View {
     @Environment(\.modelContext) private var modelContext
@@ -18,6 +21,8 @@ struct ProjectWorkspaceView: View {
     @State private var draft = GateDesignDraft()
     @State private var isGenerating: Bool = false
     @State private var lastSavedDesignId: String?
+    @State private var showGenerateError: Bool = false
+    @State private var generateErrorMessage: String?
 
     init(projectId: String) {
         self.projectId = projectId
@@ -55,6 +60,11 @@ struct ProjectWorkspaceView: View {
                         }
                     }
                 }
+                .alert("Photoreal Generate Failed", isPresented: $showGenerateError) {
+                    Button("OK") { }
+                } message: {
+                    Text(generateErrorMessage ?? "Please try again.")
+                }
                 .onAppear {
                     if draft.isFresh {
                         draft.applyDefaults(from: settings)
@@ -62,15 +72,24 @@ struct ProjectWorkspaceView: View {
                             style: draft.gateStyle,
                             material: draft.material,
                             widthFeet: draft.widthFeet,
-                            heightFeet: draft.heightFeet
+                            heightFeet: draft.heightFeet,
+                            regionMultiplier: settings.pricingRegion.multiplier
                         )
                         draft.recomputeTotals()
                     }
                 }
-                .onChange(of: draft.gateStyle) { _, _ in draft.reseedBasePriceIfAuto() }
-                .onChange(of: draft.material) { _, _ in draft.reseedBasePriceIfAuto() }
-                .onChange(of: draft.widthFeet) { _, _ in draft.reseedBasePriceIfAuto() }
-                .onChange(of: draft.heightFeet) { _, _ in draft.reseedBasePriceIfAuto() }
+                .onChange(of: draft.gateStyle) { _, _ in
+                    draft.reseedBasePriceIfAuto(regionMultiplier: settings.pricingRegion.multiplier)
+                }
+                .onChange(of: draft.material) { _, _ in
+                    draft.reseedBasePriceIfAuto(regionMultiplier: settings.pricingRegion.multiplier)
+                }
+                .onChange(of: draft.widthFeet) { _, _ in
+                    draft.reseedBasePriceIfAuto(regionMultiplier: settings.pricingRegion.multiplier)
+                }
+                .onChange(of: draft.heightFeet) { _, _ in
+                    draft.reseedBasePriceIfAuto(regionMultiplier: settings.pricingRegion.multiplier)
+                }
             } else {
                 ContentUnavailableView("Project not found", systemImage: "questionmark.folder")
             }
@@ -79,13 +98,26 @@ struct ProjectWorkspaceView: View {
 
     private func saveVersion(project: ProjectModel) {
         let now = Date()
+        var params = draft.params
+        params["latchStyle"] = .string(draft.latchStyle.rawValue)
+        params["cutoutMode"] = .string(draft.cutoutMode.rawValue)
+        params["cutoutPlacement"] = .string(draft.cutoutPlacement.rawValue)
+        if !draft.cutoutText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            params["cutoutText"] = .string(draft.cutoutText)
+        }
+        if let path = draft.cutoutImagePath {
+            params["cutoutImagePath"] = .string(path)
+        }
+        if !draft.cutoutDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            params["cutoutDescription"] = .string(draft.cutoutDescription)
+        }
         let design = GateDesignModel(
             projectId: project.id,
             gateStyle: draft.gateStyle,
             material: draft.material,
             widthFeet: draft.widthFeet,
             heightFeet: draft.heightFeet,
-            params: draft.params,
+            params: params,
             addons: draft.addons,
             basePriceCents: draft.basePriceCents,
             totalPriceCents: draft.totalPriceCents,
@@ -102,15 +134,361 @@ struct ProjectWorkspaceView: View {
 
     private func generatePhotoreal(project: ProjectModel) {
         guard !isGenerating else { return }
+        Task { @MainActor in
+            generateErrorMessage = nil
+            showGenerateError = false
+        }
         isGenerating = true
 
         Task {
             defer { Task { @MainActor in isGenerating = false } }
             try? await Task.sleep(nanoseconds: 1_000_000_000)
-            await MainActor.run {
-                draft.generatedImagePath = project.sitePhotoPath
-                draft.thumbnailPath = project.sitePhotoPath
+            let prompt = await MainActor.run { buildPrompt(project: project) }
+            let (aiPath, aiError) = await generateAIImage(prompt: prompt, jobsitePhotoPath: project.sitePhotoPath)
+            if let generatedPath = aiPath {
+                await MainActor.run {
+                    draft.generatedImagePath = generatedPath
+                    draft.thumbnailPath = generatedPath
+                }
+            } else if let fallbackPath = await generateRenderPath(project: project) {
+                await MainActor.run {
+                    draft.generatedImagePath = fallbackPath
+                    draft.thumbnailPath = fallbackPath
+                }
+            } else {
+                await MainActor.run {
+                    generateErrorMessage = aiError ?? "Unable to generate an image right now."
+                    showGenerateError = true
+                }
             }
+        }
+    }
+
+    private func generateAIImage(prompt: String, jobsitePhotoPath: String?) async -> (String?, String?) {
+        let payload = await buildEditImagesPayload(jobsitePhotoPath: jobsitePhotoPath)
+        if !payload.images.isEmpty {
+            let editPrompt = buildEditPrompt(basePrompt: prompt, references: payload.references)
+            return await requestImageEdit(prompt: editPrompt, images: payload.images)
+        }
+        return await requestImageGenerate(prompt: prompt)
+    }
+
+    private func requestImageGenerate(prompt: String) async -> (String?, String?) {
+        let baseURL = await ImageGenerationConfig.baseURL
+        let url = baseURL.appendingPathComponent("api/images/generate")
+        return await sendImageRequest(url: url, body: ImageGenerateRequest(prompt: prompt, size: "1024x1024"))
+    }
+
+    private func requestImageEdit(prompt: String, images: [String]) async -> (String?, String?) {
+        let baseURL = await ImageGenerationConfig.baseURL
+        let url = baseURL.appendingPathComponent("api/images/edit")
+        return await sendImageRequest(url: url, body: ImageEditRequest(prompt: prompt, images: images))
+    }
+
+    private func sendImageRequest<T: Encodable>(url: URL, body: T) async -> (String?, String?) {
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let authToken = await ImageGenerationConfig.authToken
+        if !authToken.isEmpty {
+            request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        guard let payload = try? JSONEncoder().encode(body) else {
+            return (nil, "Unable to encode request.")
+        }
+        request.httpBody = payload
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return (nil, "Invalid server response.")
+            }
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let message = String(data: data, encoding: .utf8)
+                return (nil, message?.isEmpty == false ? message : "Server error (\(httpResponse.statusCode)).")
+            }
+
+            let decoded = try JSONDecoder().decode(ImageGenerateResponse.self, from: data)
+            guard decoded.success, let imageUrl = decoded.imageUrl else {
+                let message = decoded.error ?? decoded.message ?? "Image generation failed."
+                return (nil, message)
+            }
+            guard let imageData = decodeDataURL(imageUrl), let image = UIImage(data: imageData) else {
+                return (nil, "Unable to decode image.")
+            }
+            let scaled = resizeImageIfNeeded(image, maxDimension: 1600)
+            let fileName = "render-\(UUID().uuidString).jpg"
+            let path = try? FileStore.writeJPEG(scaled, fileName: fileName, subdirectory: "projects/renders")
+            return (path, nil)
+        } catch {
+            return (nil, error.localizedDescription)
+        }
+    }
+
+    private func buildEditImagesPayload(jobsitePhotoPath: String?) async -> (images: [String], references: [ImageReference]) {
+        var images: [String] = []
+        var references: [ImageReference] = []
+
+        if let path = jobsitePhotoPath {
+            if let uiImage = await FileStore.readUIImageAsync(path: path),
+               let encoded = encodeImageForUpload(uiImage, maxDimension: 1024, format: .jpeg, jpegQuality: 0.7) {
+                images.append(encoded)
+                references.append(.jobsite)
+            }
+        }
+
+        let hasCutoutPath = await MainActor.run { draft.cutoutImagePath != nil }
+        let wantsGateReference = jobsitePhotoPath != nil || hasCutoutPath
+        if wantsGateReference, let gateImage = await loadGateReferenceImage(),
+           let encoded = encodeImageForUpload(gateImage, maxDimension: 640, format: .jpeg, jpegQuality: 0.8) {
+            images.append(encoded)
+            references.append(.gateDesign)
+        }
+
+        if let cutoutPath = await MainActor.run { draft.cutoutImagePath } {
+            if let uiImage = await FileStore.readUIImageAsync(path: cutoutPath),
+               let encoded = encodeImageForUpload(uiImage, maxDimension: 512, format: .png) {
+                images.append(encoded)
+                references.append(.cutoutDesign)
+            }
+        }
+
+        return (images, references)
+    }
+
+    private func buildEditPrompt(basePrompt: String, references: [ImageReference]) -> String {
+        guard !references.isEmpty else { return basePrompt }
+        let details = references.enumerated().map { index, reference in
+            let label = "image \(index + 1)"
+            switch reference {
+            case .jobsite:
+                return "\(label): jobsite photo background"
+            case .gateDesign:
+                return "\(label): gate design reference to match style and proportions"
+            case .cutoutDesign:
+                return "\(label): plasma cut design reference"
+            }
+        }
+        let styleHint = buildGateStyleHint()
+        let hintSuffix = styleHint.isEmpty ? "" : " " + styleHint
+        return basePrompt + hintSuffix + ". Reference images: " + details.joined(separator: ", ") + "."
+    }
+
+    private func loadGateReferenceImage() async -> UIImage? {
+        if draft.gateStyle == .verticalPivot {
+            return await MainActor.run { renderGatePreview() }
+        }
+        if let assetImage = UIImage(named: draft.gateStyle.imageName) {
+            return assetImage
+        }
+        return await MainActor.run { renderGatePreview() }
+    }
+
+    private enum UploadImageFormat {
+        case jpeg
+        case png
+    }
+
+    private func encodeImageForUpload(_ image: UIImage, maxDimension: CGFloat, format: UploadImageFormat, jpegQuality: CGFloat = 0.8) -> String? {
+        let resized = resizeImageIfNeeded(image, maxDimension: maxDimension)
+        let data: Data?
+        let mimeType: String
+        switch format {
+        case .jpeg:
+            data = resized.jpegData(compressionQuality: jpegQuality)
+            mimeType = "image/jpeg"
+        case .png:
+            data = resized.pngData()
+            mimeType = "image/png"
+        }
+        guard let data else { return nil }
+        let base64 = data.base64EncodedString()
+        return "data:\(mimeType);base64,\(base64)"
+    }
+
+    private func decodeDataURL(_ value: String) -> Data? {
+        guard let comma = value.firstIndex(of: ",") else { return nil }
+        let base64 = String(value[value.index(after: comma)...])
+        return Data(base64Encoded: base64, options: .ignoreUnknownCharacters)
+    }
+
+    @MainActor
+    private func buildPrompt(project: ProjectModel) -> String {
+        var components: [String] = []
+        components.append("Photorealistic driveway gate render")
+        components.append("\(draft.gateStyle.displayName) gate")
+        components.append("material: \(draft.material.displayName)")
+        components.append("size: \(Int(draft.widthFeet)) ft wide by \(Int(draft.heightFeet)) ft tall")
+        components.append("pickets: \(draft.picketOrientation.displayName)")
+        components.append("top style: \(draft.archStyle.displayName)")
+        if draft.material == .steel {
+            components.append("finials: \(draft.finialStyle.displayName)")
+        }
+        if draft.latchStyle != .none {
+            components.append("latch style: \(draft.latchStyle.displayName)")
+        }
+        let gateStyleHint = buildGateStyleHint()
+        if !gateStyleHint.isEmpty {
+            components.append(gateStyleHint)
+        }
+        let hardwareDetails = buildHardwareDetails()
+        if !hardwareDetails.isEmpty {
+            components.append("include visible hardware: \(hardwareDetails.joined(separator: ", "))")
+        }
+        let cutoutDetails = buildCutoutDetails()
+        if !cutoutDetails.isEmpty {
+            components.append(cutoutDetails)
+        }
+        if let name = project.name.isEmpty ? nil : project.name {
+            components.append("project: \(name)")
+        }
+        components.append("natural lighting, realistic shadows, no watermarks")
+        return components.joined(separator: ", ")
+    }
+
+    @MainActor
+    private func buildGateStyleHint() -> String {
+        switch draft.gateStyle {
+        case .verticalPivot:
+            return "single leaf vertical pivot gate with center pivot hinge, not double swing"
+        case .cantileverSlide:
+            return "cantilever slide gate with visible track-free sliding"
+        case .rollGate:
+            return "rolling gate with compact roll-up operator"
+        case .overheadTrack:
+            return "overhead track gate with top rail guide"
+        default:
+            return ""
+        }
+    }
+
+    @MainActor
+    private func buildHardwareDetails() -> [String] {
+        var details: [String] = []
+        for addon in draft.addons {
+            switch addon.type {
+            case .keypad:
+                details.append("keypad entry")
+            case .dropRod:
+                details.append("drop rod")
+            case .latch:
+                details.append("latch hardware")
+            case .opener:
+                if let type = addon.operatorType {
+                    details.append("\(type.displayName.lowercased()) gate opener")
+                } else {
+                    details.append("gate opener")
+                }
+            }
+        }
+        return details
+    }
+
+    @MainActor
+    private func buildCutoutDetails() -> String {
+        guard draft.cutoutMode != .none else { return "" }
+        let placement = draft.cutoutPlacement.displayName.lowercased()
+        var parts: [String] = []
+        if (draft.cutoutMode == .text || draft.cutoutMode == .textAndImage),
+           !draft.cutoutText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            parts.append("custom plasma cut text '\(draft.cutoutText)' at \(placement)")
+        }
+        if draft.cutoutMode == .image || draft.cutoutMode == .textAndImage {
+            let description = draft.cutoutDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !description.isEmpty {
+                parts.append("custom plasma cut image of \(description) at \(placement)")
+            } else {
+                parts.append("custom plasma cut image at \(placement)")
+            }
+            if draft.cutoutImagePath != nil {
+                parts.append("use the provided reference image for cutout details")
+            }
+        }
+        return parts.joined(separator: " and ")
+    }
+
+    private func generateRenderPath(project: ProjectModel) async -> String? {
+        let gateImage = await loadGateImage()
+        let basePhoto: UIImage?
+        if let path = project.sitePhotoPath {
+            basePhoto = await FileStore.readUIImageAsync(path: path)
+        } else {
+            basePhoto = nil
+        }
+        let scaledBasePhoto = basePhoto.map { resizeImageIfNeeded($0, maxDimension: 1600) }
+
+        let renderedImage: UIImage?
+        if let scaledBasePhoto, let gateImage {
+            renderedImage = compositeGate(on: scaledBasePhoto, gate: gateImage)
+        } else {
+            renderedImage = gateImage ?? scaledBasePhoto
+        }
+
+        guard let renderedImage else { return nil }
+        let fileName = "render-\(UUID().uuidString).jpg"
+        return try? FileStore.writeJPEG(renderedImage, fileName: fileName, subdirectory: "projects/renders")
+    }
+
+    private func loadGateImage() async -> UIImage? {
+        if let assetImage = UIImage(named: draft.gateStyle.imageName) {
+            return assetImage
+        }
+        return await MainActor.run { renderGatePreview() }
+    }
+
+    @MainActor
+    private func renderGatePreview() -> UIImage? {
+        let preview = GateDesignerView(
+            widthFeet: draft.widthFeet,
+            heightFeet: draft.heightFeet,
+            material: draft.material,
+            gateStyle: draft.gateStyle,
+            picketOrientation: draft.picketOrientation,
+            finialStyle: draft.finialStyle,
+            archStyle: draft.archStyle
+        )
+        let renderer = ImageRenderer(content: preview)
+        renderer.scale = UIScreen.main.scale
+        return renderer.uiImage
+    }
+
+    private func compositeGate(on basePhoto: UIImage, gate: UIImage) -> UIImage {
+        let baseSize = basePhoto.size
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: baseSize, format: format)
+        return renderer.image { context in
+            basePhoto.draw(in: CGRect(origin: .zero, size: baseSize))
+
+            let maxGateWidth = baseSize.width * 0.75
+            let maxGateHeight = baseSize.height * 0.55
+            let widthScale = maxGateWidth / gate.size.width
+            let heightScale = maxGateHeight / gate.size.height
+            let scale = min(widthScale, heightScale)
+            let gateSize = CGSize(width: gate.size.width * scale, height: gate.size.height * scale)
+            let gateOrigin = CGPoint(
+                x: (baseSize.width - gateSize.width) / 2,
+                y: baseSize.height - gateSize.height - baseSize.height * 0.08
+            )
+
+            context.cgContext.setShadow(offset: CGSize(width: 0, height: 6), blur: 12, color: UIColor.black.withAlphaComponent(0.3).cgColor)
+            gate.draw(in: CGRect(origin: gateOrigin, size: gateSize), blendMode: .normal, alpha: 0.92)
+        }
+    }
+
+    private func resizeImageIfNeeded(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let maxSide = max(image.size.width, image.size.height)
+        guard maxSide > maxDimension else { return image }
+        let scale = maxDimension / maxSide
+        let newSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
         }
     }
 }
@@ -124,6 +502,12 @@ struct GateDesignDraft: Hashable {
     var picketOrientation: GatePicketOrientation = .vertical
     var finialStyle: GateFinialStyle = .none
     var archStyle: GateArchStyle = .flat
+    var latchStyle: LatchStyle = .standard
+    var cutoutMode: CutoutMode = .none
+    var cutoutPlacement: CutoutPlacement = .center
+    var cutoutText: String = ""
+    var cutoutImagePath: String?
+    var cutoutDescription: String = ""
 
     var params: [String: JSONValue] = [:]
     var addons: [AddonLineItem] = []
@@ -158,16 +542,40 @@ struct GateDesignDraft: Hashable {
         )
     }
 
-    mutating func reseedBasePriceIfAuto() {
+    mutating func reseedBasePriceIfAuto(regionMultiplier: Double) {
         guard isBasePriceAutoSeeded else { return }
         basePriceCents = PricingCalculator.defaultBasePriceCents(
             style: gateStyle,
             material: material,
             widthFeet: widthFeet,
-            heightFeet: heightFeet
+            heightFeet: heightFeet,
+            regionMultiplier: regionMultiplier
         )
         recomputeTotals()
     }
+}
+
+private struct ImageGenerateRequest: Encodable {
+    let prompt: String
+    let size: String
+}
+
+private struct ImageEditRequest: Encodable {
+    let prompt: String
+    let images: [String]
+}
+
+private enum ImageReference {
+    case jobsite
+    case gateDesign
+    case cutoutDesign
+}
+
+private struct ImageGenerateResponse: Decodable {
+    let success: Bool
+    let imageUrl: String?
+    let error: String?
+    let message: String?
 }
 
 private struct DesignTabView: View {
@@ -178,6 +586,9 @@ private struct DesignTabView: View {
     let onSaveVersion: () -> Void
 
     @EnvironmentObject private var settings: Gate2GoSettings
+
+    @State private var cutoutPickerItem: PhotosPickerItem?
+    @State private var cutoutPreview: Image?
 
     private let columns = [GridItem(.adaptive(minimum: 160), spacing: 12)]
 
@@ -298,6 +709,83 @@ private struct DesignTabView: View {
                 .padding(14)
                 .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
+                Group {
+                    Text("Hardware & Cutouts")
+                        .font(.headline)
+
+                    VStack(spacing: 12) {
+                        HStack {
+                            Text("Latch Style")
+                            Spacer()
+                            Picker("Latch Style", selection: $draft.latchStyle) {
+                                ForEach(LatchStyle.allCases) { style in
+                                    Text(style.displayName).tag(style)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        }
+
+                        HStack {
+                            Text("Cutout Type")
+                            Spacer()
+                            Picker("Cutout Type", selection: $draft.cutoutMode) {
+                                ForEach(CutoutMode.allCases) { mode in
+                                    Text(mode.displayName).tag(mode)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        }
+
+                        if draft.cutoutMode != .none {
+                            HStack {
+                                Text("Placement")
+                                Spacer()
+                                Picker("Placement", selection: $draft.cutoutPlacement) {
+                                    ForEach(CutoutPlacement.allCases) { placement in
+                                        Text(placement.displayName).tag(placement)
+                                    }
+                                }
+                                .pickerStyle(.segmented)
+                                .frame(maxWidth: 240)
+                            }
+                        }
+
+                        if draft.cutoutMode == .text || draft.cutoutMode == .textAndImage {
+                            TextField("Initials or short text", text: $draft.cutoutText)
+                                .textInputAutocapitalization(.characters)
+                                .autocorrectionDisabled()
+                        }
+
+                        if draft.cutoutMode == .image || draft.cutoutMode == .textAndImage {
+                            PhotosPicker(selection: $cutoutPickerItem, matching: .images) {
+                                Text(draft.cutoutImagePath == nil ? "Add Cutout Image" : "Change Cutout Image")
+                            }
+
+                            if let cutoutPreview {
+                                cutoutPreview
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(height: 120)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            }
+
+                            TextField("Image description (optional)", text: $draft.cutoutDescription)
+                                .autocorrectionDisabled()
+
+                            if draft.cutoutImagePath != nil {
+                                Button("Remove Cutout Image", role: .destructive) {
+                                    draft.cutoutImagePath = nil
+                                    cutoutPreview = nil
+                                    cutoutPickerItem = nil
+                                }
+                                .font(.caption)
+                            }
+                        }
+                    }
+                }
+                .padding(14)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
                 VStack(spacing: 10) {
                     Button {
                         onGenerate()
@@ -327,6 +815,12 @@ private struct DesignTabView: View {
                     }
                     .buttonStyle(.bordered)
                 }
+
+                RenderPreviewCard(
+                    title: "Photoreal Preview",
+                    generatedPath: draft.generatedImagePath,
+                    originalPath: project.sitePhotoPath
+                )
             }
             .padding()
         }
@@ -337,20 +831,88 @@ private struct DesignTabView: View {
         .onChange(of: draft.addons) { _, _ in
             draft.recomputeTotals()
         }
+        .task(id: cutoutPickerItem) {
+            await loadCutoutImageFromPicker()
+        }
+        .task(id: draft.cutoutImagePath) {
+            await loadCutoutPreview()
+        }
+    }
+
+    private func loadCutoutImageFromPicker() async {
+        guard let selectedItem = cutoutPickerItem else { return }
+        do {
+            if let data = try await selectedItem.loadTransferable(type: Data.self),
+               let uiImage = UIImage(data: data) {
+                let fileName = "cutout-\(UUID().uuidString).jpg"
+                let path = try FileStore.writeJPEG(uiImage, fileName: fileName, subdirectory: "projects/cutouts")
+                await MainActor.run {
+                    draft.cutoutImagePath = path
+                    cutoutPreview = Image(uiImage: uiImage)
+                }
+            }
+        } catch {
+            await MainActor.run {
+                cutoutPickerItem = nil
+            }
+        }
+    }
+
+    private func loadCutoutPreview() async {
+        guard let path = draft.cutoutImagePath else {
+            await MainActor.run { cutoutPreview = nil }
+            return
+        }
+        let image = await FileStore.readUIImageAsync(path: path)
+        await MainActor.run {
+            if let image {
+                cutoutPreview = Image(uiImage: image)
+            } else {
+                cutoutPreview = nil
+            }
+        }
     }
 }
 
 private struct OptionsPriceTabView: View {
     @Binding var draft: GateDesignDraft
     let tier: SubscriptionTier
+    @EnvironmentObject private var settings: Gate2GoSettings
 
     var body: some View {
         Form {
             Section("Add-ons") {
-                AddOnPickerView(addons: $draft.addons)
+                AddOnPickerView(addons: $draft.addons, gateStyle: draft.gateStyle)
             }
 
             Section("Pricing") {
+                Picker("Pricing Region", selection: Binding(
+                    get: { settings.pricingRegion },
+                    set: { settings.pricingRegion = $0 }
+                )) {
+                    ForEach(PricingRegion.allCases) { region in
+                        Text(region.displayName).tag(region)
+                    }
+                }
+
+                Toggle("Use regional average", isOn: Binding(
+                    get: { draft.isBasePriceAutoSeeded },
+                    set: { newValue in
+                        draft.isBasePriceAutoSeeded = newValue
+                        if newValue {
+                            draft.reseedBasePriceIfAuto(regionMultiplier: settings.pricingRegion.multiplier)
+                        }
+                    }
+                ))
+
+                HStack {
+                    Text("Regional average")
+                    Spacer()
+                    Text(MoneyFormatting.dollarsString(cents: regionalAverageCents))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+
                 HStack {
                     Text("Base price")
                     Spacer()
@@ -358,6 +920,7 @@ private struct OptionsPriceTabView: View {
                         .multilineTextAlignment(.trailing)
                         .keyboardType(.numberPad)
                         .monospacedDigit()
+                        .disabled(draft.isBasePriceAutoSeeded)
                 }
                 HStack {
                     Text("Labor")
@@ -387,6 +950,11 @@ private struct OptionsPriceTabView: View {
             .onChange(of: draft.laborCents) { _, _ in draft.recomputeTotals() }
             .onChange(of: draft.markupPercent) { _, _ in draft.recomputeTotals() }
             .onChange(of: draft.taxPercent) { _, _ in draft.recomputeTotals() }
+            .onChange(of: settings.pricingRegion) { _, _ in
+                if draft.isBasePriceAutoSeeded {
+                    draft.reseedBasePriceIfAuto(regionMultiplier: settings.pricingRegion.multiplier)
+                }
+            }
 
             Section("Total") {
                 Text(MoneyFormatting.dollarsString(cents: draft.totalPriceCents))
@@ -394,6 +962,16 @@ private struct OptionsPriceTabView: View {
                     .monospacedDigit()
             }
         }
+    }
+
+    private var regionalAverageCents: Int {
+        PricingCalculator.defaultBasePriceCents(
+            style: draft.gateStyle,
+            material: draft.material,
+            widthFeet: draft.widthFeet,
+            heightFeet: draft.heightFeet,
+            regionMultiplier: settings.pricingRegion.multiplier
+        )
     }
 }
 

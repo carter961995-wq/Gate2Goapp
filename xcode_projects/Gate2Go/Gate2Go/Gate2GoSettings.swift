@@ -18,6 +18,8 @@ class Gate2GoSettings: ObservableObject {
     @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = false
     @AppStorage("hasActiveSubscription") var hasActiveSubscription: Bool = false
     @AppStorage("designCredits") var designCredits: Int = 0
+
+    @AppStorage("pricingRegion") private var pricingRegionRaw: String = PricingRegion.national.rawValue
     
     @Published var subscriptionTier: SubscriptionTier = .essential
     @Published var defaultLaborCents: Int = 50000
@@ -28,6 +30,14 @@ class Gate2GoSettings: ObservableObject {
     @AppStorage("companyPhone") var companyPhone: String = ""
     @AppStorage("companyEmail") var companyEmail: String = ""
     @Published var companyLogoData: Data?
+
+    var pricingRegion: PricingRegion {
+        get { PricingRegion(rawValue: pricingRegionRaw) ?? .national }
+        set {
+            pricingRegionRaw = newValue.rawValue
+            objectWillChange.send()
+        }
+    }
     
     var companyLogo: UIImage? {
         get {
@@ -40,8 +50,8 @@ class Gate2GoSettings: ObservableObject {
     }
     
     func isPremiumLocked(_ required: SubscriptionTier) -> Bool {
-        if subscriptionTier == .premium { return false }
-        return required == .premium
+        // Subscriptions are disabled in production for now; keep all features unlocked.
+        return false
     }
     
     func hasAccessToDesign() -> Bool {
@@ -67,5 +77,6 @@ class Gate2GoSettings: ObservableObject {
         companyPhone = ""
         companyEmail = ""
         companyLogoData = nil
+        pricingRegionRaw = PricingRegion.national.rawValue
     }
 }

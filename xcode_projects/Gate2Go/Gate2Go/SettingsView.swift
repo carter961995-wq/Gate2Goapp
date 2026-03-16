@@ -10,13 +10,18 @@ import PhotosUI
 
 struct SettingsView: View {
     @EnvironmentObject private var settings: Gate2GoSettings
+    @EnvironmentObject private var authManager: AuthManager
+    @Binding var selectedTab: MainTab
     @State private var showingImagePicker = false
     @State private var selectedItem: PhotosPickerItem?
     @State private var showResetConfirmation = false
+    @State private var showDeleteAccountConfirmation = false
     
     var body: some View {
         Form {
             subscriptionSection
+
+            accountSection
             
             companyBrandingSection
             
@@ -27,6 +32,7 @@ struct SettingsView: View {
             resetSection
         }
         .navigationTitle("Settings")
+        .navigationBarBackButtonHidden(true)
         .alert("Reset App", isPresented: $showResetConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Reset", role: .destructive) {
@@ -35,52 +41,89 @@ struct SettingsView: View {
         } message: {
             Text("This will clear all data including projects, designs, and settings. You'll see the onboarding screens again.")
         }
+        .alert("Delete Account", isPresented: $showDeleteAccountConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                Task { await authManager.deleteAccount() }
+            }
+        } message: {
+            Text("This will permanently delete your account. Local projects will remain on this device.")
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    selectedTab = .projects
+                } label: {
+                    Label("Back", systemImage: "chevron.left")
+                }
+            }
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    dismissKeyboard()
+                }
+            }
+        }
     }
     
     private var subscriptionSection: some View {
         Section {
-            if settings.hasActiveSubscription {
-                HStack {
-                    Image(systemName: "checkmark.seal.fill")
-                        .foregroundStyle(.green)
-                    Text("Gate2Go Pro Active")
-                        .font(.headline)
-                }
-                
-                Text("You have unlimited access to all features")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if settings.designCredits > 0 {
-                HStack {
-                    Image(systemName: "ticket.fill")
-                        .foregroundStyle(.blue)
-                    Text("\(settings.designCredits) Design Credit\(settings.designCredits == 1 ? "" : "s")")
-                        .font(.headline)
-                }
-                
-                Text("Use credits to save gate designs")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                HStack {
-                    Image(systemName: "lock.fill")
-                        .foregroundStyle(.orange)
-                    Text("No Active Subscription")
-                }
-                
-                NavigationLink(destination: PaywallView()) {
-                    Text("Upgrade to Pro")
-                        .foregroundStyle(.blue)
-                }
+            HStack {
+                Image(systemName: "checkmark.seal.fill")
+                    .foregroundStyle(.green)
+                Text("All Features Enabled")
+                    .font(.headline)
             }
-            
-            Picker("Tier", selection: $settings.subscriptionTier) {
-                Text("Essential").tag(SubscriptionTier.essential)
-                Text("Premium").tag(SubscriptionTier.premium)
-            }
-            .pickerStyle(.segmented)
+            Text("Subscriptions are not required to use Gate2Go.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         } header: {
-            Text("Subscription")
+            Text("Access")
+        }
+    }
+
+    private var accountSection: some View {
+        Section {
+            if authManager.isAuthenticated {
+                if let email = authManager.userEmail {
+                    Text(email)
+                        .font(.subheadline)
+                } else {
+                    Text("Signed in")
+                        .font(.subheadline)
+                }
+
+                Button("Sign Out") {
+                    authManager.signOut()
+                }
+
+                Button("Delete Account", role: .destructive) {
+                    showDeleteAccountConfirmation = true
+                }
+            } else if authManager.isGuest {
+                Text("Using Gate2Go as Guest")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Button("Sign in or Create Account") {
+                    authManager.beginSignIn()
+                }
+            } else {
+                Button("Sign in or Create Account") {
+                    authManager.beginSignIn()
+                }
+            }
+
+            if let error = authManager.errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        } header: {
+            Text("Account")
+        } footer: {
+            if authManager.isGuest {
+                Text("Sign in to access your account on other devices.")
+            }
         }
     }
     
@@ -141,7 +184,7 @@ struct SettingsView: View {
                 TextField("Email Address", text: $settings.companyEmail)
                     .keyboardType(.emailAddress)
                     .textContentType(.emailAddress)
-                    .autocapitalization(.none)
+                    .textInputAutocapitalization(.never)
             }
         } header: {
             Text("Company Branding")
@@ -152,6 +195,15 @@ struct SettingsView: View {
     
     private var defaultPricingSection: some View {
         Section {
+            Picker("Pricing Region", selection: Binding(
+                get: { settings.pricingRegion },
+                set: { settings.pricingRegion = $0 }
+            )) {
+                ForEach(PricingRegion.allCases) { region in
+                    Text(region.displayName).tag(region)
+                }
+            }
+
             HStack {
                 Text("Default Labor")
                 Spacer()
@@ -209,11 +261,16 @@ struct SettingsView: View {
             Text("Clears all projects, designs, and settings. Use this if you want to start fresh.")
         }
     }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
 }
 
 #Preview {
     NavigationStack {
-        SettingsView()
+        SettingsView(selectedTab: .constant(.settings))
             .environmentObject(Gate2GoSettings())
+            .environmentObject(AuthManager())
     }
 }

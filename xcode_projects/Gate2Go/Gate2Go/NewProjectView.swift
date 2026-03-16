@@ -21,8 +21,7 @@ struct NewProjectView: View {
     @State private var photoPath: String?
     @State private var photoPreview: Image?
 
-    @State private var createdProjectId: String?
-    @State private var goToWorkspace: Bool = false
+    @State private var workspaceDestination: WorkspaceDestination?
 
     var body: some View {
         Form {
@@ -80,19 +79,9 @@ struct NewProjectView: View {
         .navigationTitle("New Project")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: pickedPhotoItem) { await loadPhoto() }
-        .background(
-            NavigationLink(
-                destination: Group {
-                    if let createdProjectId {
-                        ProjectWorkspaceView(projectId: createdProjectId)
-                    } else {
-                        EmptyView()
-                    }
-                },
-                isActive: $goToWorkspace
-            ) { EmptyView() }
-                .hidden()
-        )
+        .navigationDestination(item: $workspaceDestination) { destination in
+            ProjectWorkspaceView(projectId: destination.id)
+        }
     }
 
     private var canCreate: Bool {
@@ -132,9 +121,12 @@ struct NewProjectView: View {
             updatedAt: now
         )
         modelContext.insert(p)
-        createdProjectId = p.id
-        goToWorkspace = true
+        workspaceDestination = WorkspaceDestination(id: p.id)
     }
+}
+
+private struct WorkspaceDestination: Hashable {
+    let id: String
 }
 
 private extension String {

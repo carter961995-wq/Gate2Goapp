@@ -11,6 +11,7 @@ import SwiftData
 @main
 struct Gate2GoApp: App {
     @StateObject private var settings = Gate2GoSettings()
+    @StateObject private var authManager = AuthManager()
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -30,6 +31,7 @@ struct Gate2GoApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(settings)
+                .environmentObject(authManager)
         }
         .modelContainer(sharedModelContainer)
     }
