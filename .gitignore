@@ -38,6 +38,9 @@ yarn-error.*
 
 app-example
 
+# local Android repo
+gate2go-android/
+
 # generated native folders
 /ios
 /android
