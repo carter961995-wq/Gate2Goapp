@@ -13,6 +13,7 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
+  hasCompletedAuth: false,
   hasCompletedOnboarding: false,
   hasActiveSubscription: false,
   subscriptionTier: "essential",
@@ -23,6 +24,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   brandingPhone: "",
   brandingEmail: "",
   brandingLogoUri: "",
+  appleUserId: "",
+  appleEmail: "",
+  appleFullName: "",
   designCredits: 0,
 };
 
